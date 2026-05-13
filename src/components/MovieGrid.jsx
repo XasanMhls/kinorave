@@ -1,13 +1,24 @@
 "use client";
 
+import { motion } from "framer-motion";
 import MovieCard from "./MovieCard";
 import { Link } from "@/lib/navigation";
 import ScrollReveal from "./ScrollReveal";
 
-/**
- * MovieGrid — editorial section with numbered heading.
- * Shows: section number + "section name" + italic subtitle.
- */
+const containerVariants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.05,
+    },
+  },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
+};
+
 export default function MovieGrid({
   title,
   subtitle,
@@ -15,7 +26,7 @@ export default function MovieGrid({
   type = "movie",
   seeAllHref,
   sectionNumber = "",
-  accent = "lime", // "lime" | "amber" | "crimson"
+  accent = "lime",
 }) {
   if (!movies || movies.length === 0) return null;
 
@@ -39,7 +50,6 @@ export default function MovieGrid({
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-14">
           <div className="max-w-2xl">
-            {/* Section number strip */}
             <div className="flex items-baseline gap-4 mb-5">
               {sectionNumber && (
                 <>
@@ -53,7 +63,6 @@ export default function MovieGrid({
                 Collection
               </span>
             </div>
-            {/* Big italic headline */}
             <h2
               className="text-[clamp(2rem,4.5vw,4rem)] font-[family-name:var(--font-display)] text-text-primary leading-[0.95] tracking-[-0.04em]"
               style={{ fontVariationSettings: '"opsz" 144, "SOFT" 60' }}
@@ -70,7 +79,6 @@ export default function MovieGrid({
             )}
           </div>
 
-          {/* See all link */}
           {seeAllHref && (
             <Link
               href={seeAllHref}
@@ -85,12 +93,20 @@ export default function MovieGrid({
           )}
         </div>
 
-        {/* Grid — more breathing room between cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 md:gap-6 lg:gap-8">
+        {/* Stagger grid */}
+        <motion.div
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 md:gap-6 lg:gap-8"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "0px 0px -80px 0px" }}
+        >
           {movies.map((movie) => (
-            <MovieCard key={movie.id} movie={movie} type={type} />
+            <motion.div key={movie.id} variants={cardVariants}>
+              <MovieCard movie={movie} type={type} />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </section>
     </ScrollReveal>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import styles from "./AuthModal.module.css";
 
 const initialLogin = { email: "", password: "" };
@@ -34,8 +35,6 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
       document.body.style.overflow = "";
     };
   }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
 
   function updateForm(type, field, value) {
     if (type === "login") {
@@ -76,11 +75,26 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
   }
 
   return (
+    <AnimatePresence>
+      {isOpen && (
     <div className="fixed inset-0 z-[100] overflow-y-auto p-4 sm:p-6 lg:p-10">
-      <div className="absolute inset-0 bg-[rgba(3,3,8,0.84)] backdrop-blur-2xl" onClick={onClose} />
+      <motion.div
+        className="absolute inset-0 bg-[rgba(3,3,8,0.84)] backdrop-blur-2xl"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25 }}
+        onClick={onClose}
+      />
 
       <div className={`relative mx-auto flex min-h-full items-center justify-center ${styles.shell}`}>
-        <div className={styles.modalCard}>
+        <motion.div
+          className={styles.modalCard}
+          initial={{ opacity: 0, scale: 0.94, y: 24 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.94, y: 16 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        >
           <button
             onClick={onClose}
             aria-label="Close"
@@ -237,8 +251,10 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
               </form>
             </section>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
+      )}
+    </AnimatePresence>
   );
 }

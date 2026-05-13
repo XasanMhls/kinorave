@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import { Link } from "@/lib/navigation";
 import { getBackdropUrl, getImageUrl } from "@/lib/tmdb";
@@ -13,19 +13,19 @@ export default function TrendingCarousel({ movies, type = "movie" }) {
 
   const items = movies.slice(0, 10);
 
-  function scroll(dir) {
+  const scroll = useCallback((dir) => {
     const el = scrollRef.current;
     if (!el) return;
     const cardWidth = el.firstElementChild?.offsetWidth || 400;
     el.scrollBy({ left: dir * (cardWidth + 16), behavior: "smooth" });
-  }
+  }, []);
 
-  function handleScroll() {
+  const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el || !el.firstElementChild) return;
     const cardWidth = el.firstElementChild.offsetWidth + 16;
     setActiveIndex(Math.round(el.scrollLeft / cardWidth));
-  }
+  }, []);
 
   return (
     <div className="relative group/carousel">

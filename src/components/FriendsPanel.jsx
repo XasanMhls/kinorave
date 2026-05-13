@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { getSocket } from "@/lib/socket";
 import Button from "./ui/Button";
 
@@ -11,8 +12,16 @@ function readCookie(name) {
 
 function Avatar({ username, avatar, size = 38 }) {
   if (avatar) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={avatar} alt={username} className="rounded-[12px] object-cover" style={{ width: size, height: size }} />;
+    return (
+      <Image
+        src={avatar}
+        alt={username}
+        width={size}
+        height={size}
+        className="rounded-[12px] object-cover"
+        style={{ width: size, height: size }}
+      />
+    );
   }
 
   return (

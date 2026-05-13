@@ -12,6 +12,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "framer-motion": "^12.38.0",
+    "hls.js": "^1.6.16",
     "mongoose": "^9.4.1",
     "next": "16.2.3",
     "next-intl": "^4.9.0",

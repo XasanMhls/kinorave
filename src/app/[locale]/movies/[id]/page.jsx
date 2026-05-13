@@ -43,7 +43,7 @@ export default async function MovieDetailPage({ params }) {
   return (
     <>
       {/* Backdrop — full bleed behind navbar */}
-      <div className="relative h-[60vh] min-h-[420px] -mt-[72px]">
+      <div className="relative h-[60vh] min-h-[420px] -mt-[88px]">
         {backdrop && (
           <Image src={backdrop} alt="" fill className="object-cover object-[50%_20%]" priority quality={85} sizes="100vw" />
         )}

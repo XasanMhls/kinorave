@@ -2,24 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import LobbyOverlay from "./LobbyOverlay";
+import PlayerControls from "./player/PlayerControls";
+import WatchPartyPanel from "./player/WatchPartyPanel";
 import Button from "./ui/Button";
-
-const API_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
-
-function formatTime(seconds) {
-  if (!Number.isFinite(seconds) || seconds < 0) return "00:00";
-
-  const totalSeconds = Math.floor(seconds);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const secs = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  }
-
-  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-}
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -54,12 +39,7 @@ export default function VideoPlayer({
   const [currentUser, setCurrentUser] = useState(null);
   const [authToken, setAuthToken] = useState(null);
   const [lobbyCode, setLobbyCode] = useState(initialLobbyCode);
-  const [lobbyInput, setLobbyInput] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
-  const [showJoin, setShowJoin] = useState(false);
-  const [lobbyLoading, setLobbyLoading] = useState(false);
-  const [lobbyError, setLobbyError] = useState("");
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const [resolverState, setResolverState] = useState({
     loading: true,
@@ -80,49 +60,41 @@ export default function VideoPlayer({
   const [muted, setMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
-  const [copied, setCopied] = useState(false);
 
+  // Auth init
   useEffect(() => {
     fetch("/api/auth/me")
-      .then((response) => (response.ok ? response.json() : null))
+      .then((r) => (r.ok ? r.json() : null))
       .then((payload) => {
         if (payload?.user) {
           setCurrentUser({ userId: payload.user.id, username: payload.user.username });
         }
       })
       .catch(() => {});
-
     setAuthToken(readCookie("auth_token"));
   }, []);
 
+  // Source resolution
   useEffect(() => {
     const controller = new AbortController();
 
-    async function resolvePlayerSources() {
+    async function resolve() {
       setResolverState((prev) => ({ ...prev, loading: true, error: "" }));
       setPlaybackError("");
       sourceFailureRef.current.clear();
 
       try {
-        const params = new URLSearchParams({
-          tmdbId: String(tmdbId),
-          type,
-        });
-
+        const params = new URLSearchParams({ tmdbId: String(tmdbId), type });
         if (type === "tv") {
           params.set("season", String(currentSeason));
           params.set("episode", String(currentEpisode));
         }
-
-        const response = await fetch(`/api/player?${params.toString()}`, {
+        const res = await fetch(`/api/player?${params}`, {
           signal: controller.signal,
           cache: "no-store",
         });
-        const payload = await response.json();
-
-        if (!response.ok) {
-          throw new Error(payload.error || "Failed to resolve player sources");
-        }
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || "Failed to resolve player sources");
 
         setResolverState({
           loading: false,
@@ -130,31 +102,22 @@ export default function VideoPlayer({
           mediaSources: payload.mediaSources || [],
           embedSources: payload.embedSources || [],
         });
-
-        const preferredId = payload.preferredSourceId;
         setActiveSourceId((prev) => {
-          const availableIds = new Set([
-            ...(payload.mediaSources || []).map((item) => item.id),
-            ...(payload.embedSources || []).map((item) => item.id),
+          const ids = new Set([
+            ...(payload.mediaSources || []).map((s) => s.id),
+            ...(payload.embedSources || []).map((s) => s.id),
           ]);
-
-          if (prev && availableIds.has(prev)) return prev;
-          if (preferredId && availableIds.has(preferredId)) return preferredId;
+          if (prev && ids.has(prev)) return prev;
+          if (payload.preferredSourceId && ids.has(payload.preferredSourceId)) return payload.preferredSourceId;
           return payload.mediaSources?.[0]?.id || payload.embedSources?.[0]?.id || null;
         });
-      } catch (error) {
+      } catch (err) {
         if (controller.signal.aborted) return;
-
-        setResolverState({
-          loading: false,
-          error: error.message || "Failed to resolve sources",
-          mediaSources: [],
-          embedSources: [],
-        });
+        setResolverState({ loading: false, error: err.message || "Failed to resolve sources", mediaSources: [], embedSources: [] });
       }
     }
 
-    resolvePlayerSources();
+    resolve();
     return () => controller.abort();
   }, [tmdbId, type, currentSeason, currentEpisode]);
 
@@ -164,9 +127,7 @@ export default function VideoPlayer({
   );
 
   const activeSource =
-    sourceOptions.find((source) => source.id === activeSourceId) ||
-    sourceOptions[0] ||
-    null;
+    sourceOptions.find((s) => s.id === activeSourceId) || sourceOptions[0] || null;
 
   const isHost = Boolean(lobbyCode && lobbyControllerRef.current?.isHost);
   const canControlPlayback = !lobbyCode || isHost;
@@ -177,17 +138,16 @@ export default function VideoPlayer({
       pendingRemotePlaybackRef.current = nextState;
       return;
     }
-
     suppressOutboundSyncRef.current = true;
     try {
-      const nextPosition = clamp(nextState.position || 0, 0, Number.isFinite(video.duration) ? video.duration : nextState.position || 0);
-      if (Math.abs(video.currentTime - nextPosition) > 1) {
-        video.currentTime = nextPosition;
-      }
-
-      setCurrentTime(nextPosition);
-      setSeekValue(nextPosition);
-
+      const nextPos = clamp(
+        nextState.position || 0,
+        0,
+        Number.isFinite(video.duration) ? video.duration : nextState.position || 0
+      );
+      if (Math.abs(video.currentTime - nextPos) > 1) video.currentTime = nextPos;
+      setCurrentTime(nextPos);
+      setSeekValue(nextPos);
       if (nextState.isPlaying) {
         await video.play();
       } else {
@@ -196,74 +156,52 @@ export default function VideoPlayer({
     } catch {
       setPlaybackError("The selected source could not be controlled. Try another source.");
     } finally {
-      window.setTimeout(() => {
-        suppressOutboundSyncRef.current = false;
-      }, 0);
+      window.setTimeout(() => { suppressOutboundSyncRef.current = false; }, 0);
     }
   }, [activeSource]);
 
   useEffect(() => {
     if (!activeSource || getSourceMode(activeSource) !== "media") return;
     if (!pendingRemotePlaybackRef.current) return;
-
     applyRemotePlayback(pendingRemotePlaybackRef.current);
     pendingRemotePlaybackRef.current = null;
   }, [activeSource, applyRemotePlayback]);
 
-  const handleSyncEvent = useCallback(
-    async (event) => {
-      if (!event) return;
+  const handleSyncEvent = useCallback(async (event) => {
+    if (!event) return;
+    if (event.fromUserId && event.fromUserId === currentUser?.userId) return;
 
-      if (event.fromUserId && event.fromUserId === currentUser?.userId) {
-        return;
+    if (event.source !== undefined || event.position !== undefined || event.isPlaying !== undefined) {
+      if (event.source) setActiveSourceId(event.source);
+      if (event.season != null) setCurrentSeason(event.season);
+      if (event.episode != null) setCurrentEpisode(event.episode);
+      await applyRemotePlayback({ position: event.position || 0, isPlaying: Boolean(event.isPlaying) });
+      return;
+    }
+
+    const { action, data, serverTimestamp } = event;
+    switch (action) {
+      case "source":
+        if (data?.source) setActiveSourceId(data.source);
+        if (data?.season != null) setCurrentSeason(data.season);
+        if (data?.episode != null) setCurrentEpisode(data.episode);
+        setPlaybackError("");
+        break;
+      case "play": {
+        const drift = serverTimestamp ? Math.max((Date.now() - serverTimestamp) / 1000, 0) : 0;
+        await applyRemotePlayback({ position: (data?.position || 0) + drift, isPlaying: true });
+        break;
       }
-
-      if (event.source !== undefined || event.position !== undefined || event.isPlaying !== undefined) {
-        if (event.source) setActiveSourceId(event.source);
-        if (event.season != null) setCurrentSeason(event.season);
-        if (event.episode != null) setCurrentEpisode(event.episode);
-
-        await applyRemotePlayback({
-          position: event.position || 0,
-          isPlaying: Boolean(event.isPlaying),
-        });
-        return;
-      }
-
-      const { action, data, serverTimestamp } = event;
-      switch (action) {
-        case "source":
-          if (data?.source) setActiveSourceId(data.source);
-          if (data?.season != null) setCurrentSeason(data.season);
-          if (data?.episode != null) setCurrentEpisode(data.episode);
-          setPlaybackError("");
-          break;
-        case "play": {
-          const driftCompensation = serverTimestamp ? Math.max((Date.now() - serverTimestamp) / 1000, 0) : 0;
-          await applyRemotePlayback({
-            position: (data?.position || 0) + driftCompensation,
-            isPlaying: true,
-          });
-          break;
-        }
-        case "pause":
-          await applyRemotePlayback({
-            position: data?.position || currentTime,
-            isPlaying: false,
-          });
-          break;
-        case "seek":
-          await applyRemotePlayback({
-            position: data?.position || 0,
-            isPlaying,
-          });
-          break;
-        default:
-          break;
-      }
-    },
-    [applyRemotePlayback, currentTime, currentUser?.userId, isPlaying]
-  );
+      case "pause":
+        await applyRemotePlayback({ position: data?.position || currentTime, isPlaying: false });
+        break;
+      case "seek":
+        await applyRemotePlayback({ position: data?.position || 0, isPlaying });
+        break;
+      default:
+        break;
+    }
+  }, [applyRemotePlayback, currentTime, currentUser?.userId, isPlaying]);
 
   const emitLobbySync = useCallback((action, data = {}) => {
     if (!lobbyCode || !lobbyControllerRef.current?.isHost) return;
@@ -273,68 +211,42 @@ export default function VideoPlayer({
   const selectSource = useCallback((sourceId) => {
     setActiveSourceId(sourceId);
     setPlaybackError("");
-
     if (type === "tv") {
-      emitLobbySync("source", {
-        source: sourceId,
-        season: currentSeason,
-        episode: currentEpisode,
-      });
+      emitLobbySync("source", { source: sourceId, season: currentSeason, episode: currentEpisode });
       return;
     }
-
     emitLobbySync("source", { source: sourceId });
   }, [currentEpisode, currentSeason, emitLobbySync, type]);
 
   const updateControlsVisibility = useCallback((visible) => {
     setControlsVisible(visible);
-
-    if (controlsHideTimerRef.current) {
-      clearTimeout(controlsHideTimerRef.current);
-    }
-
+    if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current);
     if (visible && isPlaying) {
-      controlsHideTimerRef.current = window.setTimeout(() => {
-        setControlsVisible(false);
-      }, 2200);
+      controlsHideTimerRef.current = window.setTimeout(() => setControlsVisible(false), 2200);
     }
   }, [isPlaying]);
 
-  useEffect(() => () => {
-    if (controlsHideTimerRef.current) {
-      clearTimeout(controlsHideTimerRef.current);
-    }
-  }, []);
+  useEffect(() => () => { if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current); }, []);
 
   const handleMediaError = useCallback(() => {
     if (getSourceMode(activeSource) !== "media") {
       setPlaybackError("This embedded source is unavailable right now. Try another provider.");
       return;
     }
-
     sourceFailureRef.current.add(activeSource.id);
-
-    const nextSource = resolverState.mediaSources.find(
-      (source) => source.id !== activeSource.id && !sourceFailureRef.current.has(source.id)
+    const next = resolverState.mediaSources.find(
+      (s) => s.id !== activeSource.id && !sourceFailureRef.current.has(s.id)
     );
-
-    if (nextSource) {
-      setActiveSourceId(nextSource.id);
-      setPlaybackError("");
-      return;
-    }
-
+    if (next) { setActiveSourceId(next.id); setPlaybackError(""); return; }
     setPlaybackError("No valid direct video source could be played. Try an embedded fallback provider below.");
   }, [activeSource, resolverState.mediaSources]);
 
   const handleLoadedMetadata = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-
     setDuration(video.duration || 0);
     setCurrentTime(video.currentTime || 0);
     setSeekValue(video.currentTime || 0);
-
     if (pendingRemotePlaybackRef.current) {
       applyRemotePlayback(pendingRemotePlaybackRef.current);
       pendingRemotePlaybackRef.current = null;
@@ -350,7 +262,6 @@ export default function VideoPlayer({
   const handlePlay = useCallback(() => {
     setIsPlaying(true);
     updateControlsVisibility(true);
-
     if (suppressOutboundSyncRef.current || !canControlPlayback) return;
     emitLobbySync("play", { position: videoRef.current?.currentTime || 0 });
   }, [canControlPlayback, emitLobbySync, updateControlsVisibility]);
@@ -358,7 +269,6 @@ export default function VideoPlayer({
   const handlePause = useCallback(() => {
     setIsPlaying(false);
     setControlsVisible(true);
-
     if (suppressOutboundSyncRef.current || !canControlPlayback) return;
     emitLobbySync("pause", { position: videoRef.current?.currentTime || 0 });
   }, [canControlPlayback, emitLobbySync]);
@@ -366,13 +276,8 @@ export default function VideoPlayer({
   const togglePlayback = useCallback(async () => {
     const video = videoRef.current;
     if (!video || !canControlPlayback || getSourceMode(activeSource) !== "media") return;
-
     try {
-      if (video.paused) {
-        await video.play();
-      } else {
-        video.pause();
-      }
+      if (video.paused) { await video.play(); } else { video.pause(); }
     } catch {
       setPlaybackError("This video source could not be started. Try another source.");
     }
@@ -381,125 +286,48 @@ export default function VideoPlayer({
   const commitSeek = useCallback((rawValue) => {
     const video = videoRef.current;
     if (!video || !canControlPlayback) return;
-
     const nextTime = clamp(rawValue, 0, duration || rawValue);
     suppressOutboundSyncRef.current = true;
     video.currentTime = nextTime;
     setCurrentTime(nextTime);
     setSeekValue(nextTime);
     setIsSeeking(false);
-
-    window.setTimeout(() => {
-      suppressOutboundSyncRef.current = false;
-    }, 0);
-
+    window.setTimeout(() => { suppressOutboundSyncRef.current = false; }, 0);
     emitLobbySync("seek", { position: nextTime });
   }, [canControlPlayback, duration, emitLobbySync]);
 
   const toggleMute = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-
-    const nextMuted = !video.muted;
-    video.muted = nextMuted;
-    setMuted(nextMuted);
+    const next = !video.muted;
+    video.muted = next;
+    setMuted(next);
   }, []);
 
   const handleVolumeChange = useCallback((nextVolume) => {
     const video = videoRef.current;
     if (!video) return;
-
-    const normalized = clamp(Number(nextVolume), 0, 1);
-    video.volume = normalized;
-    video.muted = normalized === 0;
-    setVolume(normalized);
-    setMuted(normalized === 0);
+    const norm = clamp(Number(nextVolume), 0, 1);
+    video.volume = norm;
+    video.muted = norm === 0;
+    setVolume(norm);
+    setMuted(norm === 0);
   }, []);
 
   const toggleFullscreen = useCallback(async () => {
     if (!containerRef.current) return;
-
     if (document.fullscreenElement) {
       await document.exitFullscreen();
-      return;
+    } else {
+      await containerRef.current.requestFullscreen();
     }
-
-    await containerRef.current.requestFullscreen();
   }, []);
 
   useEffect(() => {
-    const onFullscreenChange = () => updateControlsVisibility(true);
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+    const onFSChange = () => updateControlsVisibility(true);
+    document.addEventListener("fullscreenchange", onFSChange);
+    return () => document.removeEventListener("fullscreenchange", onFSChange);
   }, [updateControlsVisibility]);
-
-  async function createLobby() {
-    if (!currentUser || !authToken) {
-      setLobbyError("Log in to start a watch party.");
-      return;
-    }
-
-    setLobbyLoading(true);
-    setLobbyError("");
-
-    try {
-      const response = await fetch(`${API_URL}/api/lobby`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          movieId: tmdbId,
-          movieType: type,
-          movieTitle: title || `Title ${tmdbId}`,
-          moviePoster: poster || null,
-          isPrivate,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error || "Failed to create lobby");
-      }
-
-      setLobbyCode(payload.code);
-      setShowCreate(false);
-      setLobbyError("");
-    } catch (error) {
-      setLobbyError(error.message || "Failed to create lobby");
-    } finally {
-      setLobbyLoading(false);
-    }
-  }
-
-  function joinLobby() {
-    const code = lobbyInput.trim().toUpperCase();
-    if (code.length !== 6) {
-      setLobbyError("Enter a valid 6-character room code.");
-      return;
-    }
-
-    if (!currentUser) {
-      setLobbyError("Log in to join a room.");
-      return;
-    }
-
-    setLobbyCode(code);
-    setShowJoin(false);
-    setLobbyError("");
-    setLobbyInput("");
-  }
-
-  function copyInviteLink() {
-    if (!lobbyCode) return;
-
-    const url = new URL(window.location.href);
-    url.searchParams.set("lobby", lobbyCode);
-    navigator.clipboard.writeText(url.toString()).then(() => {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1200);
-    }).catch(() => {});
-  }
 
   const getPlaybackState = useCallback(() => ({
     currentTime: videoRef.current?.currentTime || currentTime,
@@ -507,22 +335,32 @@ export default function VideoPlayer({
     sourceId: activeSource?.id || null,
   }), [activeSource?.id, currentTime]);
 
+  const copyInviteLink = useCallback(() => {
+    if (!lobbyCode) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("lobby", lobbyCode);
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    }).catch(() => {});
+  }, [lobbyCode]);
+
   const mediaSource = getSourceMode(activeSource) === "media" ? activeSource : null;
   const embedSource = getSourceMode(activeSource) === "embed" ? activeSource : null;
 
   return (
     <div className="space-y-5">
       <div className="rounded-[28px] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(17,17,26,0.96),rgba(7,7,11,0.96))] shadow-elevated">
+        {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
           <div>
-            <p className="text-[11px] font-[family-name:var(--font-mono)] uppercase tracking-[0.18em] text-accent">
-              Player
-            </p>
+            <p className="text-[11px] font-[family-name:var(--font-mono)] uppercase tracking-[0.18em] text-accent">Player</p>
             <h3 className="mt-1 text-[20px] font-[family-name:var(--font-display)] tracking-[-0.03em] text-text-primary">
               {title || "Now Playing"}
             </h3>
           </div>
 
+          {/* Source selector */}
           <div className="flex flex-wrap items-center gap-2">
             {sourceOptions.map((source) => {
               const active = source.id === activeSource?.id;
@@ -546,8 +384,10 @@ export default function VideoPlayer({
           </div>
         </div>
 
+        {/* Content */}
         <div className={`flex gap-5 p-5 ${lobbyCode ? "flex-col xl:flex-row" : "flex-col"}`}>
           <div className="min-w-0 flex-1 space-y-4">
+            {/* Video container */}
             <div
               ref={containerRef}
               className="group relative overflow-hidden rounded-[26px] border border-white/[0.08] bg-black"
@@ -605,95 +445,26 @@ export default function VideoPlayer({
                         controlsVisible ? "opacity-100" : "opacity-0"
                       }`}
                     >
-                      <div className="w-full px-4 pb-4 pt-12">
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[12px] text-white/70">{mediaSource.label}</p>
-                            <p className="text-[15px] font-semibold text-white">{title || "Stream"}</p>
-                          </div>
-                          {lobbyCode && (
-                            <div className="rounded-full border border-white/12 bg-black/30 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">
-                              {isHost ? "Host controls" : "Synced viewer"}
-                            </div>
-                          )}
-                        </div>
-
-                        <input
-                          type="range"
-                          min={0}
-                          max={duration || 0}
-                          step={0.1}
-                          value={isSeeking ? seekValue : currentTime}
-                          onChange={(event) => {
-                            const nextValue = Number(event.target.value);
-                            setIsSeeking(true);
-                            setSeekValue(nextValue);
-                          }}
-                          onMouseUp={(event) => commitSeek(Number(event.currentTarget.value))}
-                          onTouchEnd={(event) => commitSeek(Number(event.currentTarget.value))}
-                          disabled={!canControlPlayback}
-                          className="mb-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/20 accent-accent disabled:cursor-not-allowed"
-                        />
-
-                        <div className="flex flex-wrap items-center gap-3 text-white">
-                          <button
-                            type="button"
-                            onClick={togglePlayback}
-                            disabled={!canControlPlayback}
-                            className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/14 backdrop-blur-xl transition hover:bg-white/20 disabled:opacity-40"
-                          >
-                            {isPlaying ? (
-                              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
-                              </svg>
-                            ) : (
-                              <svg className="ml-0.5 h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M8 5v14l11-7z" />
-                              </svg>
-                            )}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={toggleMute}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/16"
-                          >
-                            {muted || volume === 0 ? (
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M16.5 12a4.5 4.5 0 00-1.54-3.39l1.42-1.42A6.46 6.46 0 0118.5 12c0 1.77-.71 3.37-1.86 4.53l-1.42-1.42A4.48 4.48 0 0016.5 12zM5 9v6h4l5 5V4L9 9H5zm13.71 12.29L4.71 7.29l1.41-1.41 14 14z" />
-                              </svg>
-                            ) : (
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M14 4L9 9H5v6h4l5 5V4zm2.5 8a4.5 4.5 0 00-2.12-3.81v7.62A4.5 4.5 0 0016.5 12zm0-8.5v2.06a8 8 0 010 12.88v2.06a10 10 0 000-17z" />
-                              </svg>
-                            )}
-                          </button>
-
-                          <input
-                            type="range"
-                            min={0}
-                            max={1}
-                            step={0.05}
-                            value={muted ? 0 : volume}
-                            onChange={(event) => handleVolumeChange(event.target.value)}
-                            className="h-1.5 w-28 cursor-pointer appearance-none rounded-full bg-white/20 accent-accent"
-                          />
-
-                          <span className="ml-auto text-[12px] text-white/70">
-                            {formatTime(isSeeking ? seekValue : currentTime)} / {formatTime(duration)}
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={toggleFullscreen}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/16"
-                          >
-                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
+                      <PlayerControls
+                        isPlaying={isPlaying}
+                        isSeeking={isSeeking}
+                        seekValue={seekValue}
+                        currentTime={currentTime}
+                        duration={duration}
+                        volume={volume}
+                        muted={muted}
+                        canControlPlayback={canControlPlayback}
+                        lobbyCode={lobbyCode}
+                        isHost={isHost}
+                        title={title}
+                        mediaLabel={mediaSource.label}
+                        onTogglePlayback={togglePlayback}
+                        onSeekChange={(v) => { setIsSeeking(true); setSeekValue(v); }}
+                        onSeekCommit={commitSeek}
+                        onToggleMute={toggleMute}
+                        onVolumeChange={handleVolumeChange}
+                        onToggleFullscreen={toggleFullscreen}
+                      />
                     </div>
                   </>
                 ) : embedSource ? (
@@ -708,7 +479,7 @@ export default function VideoPlayer({
                       referrerPolicy="origin"
                     />
                     <div className="border-t border-white/[0.06] bg-[#08080d] px-4 py-3 text-[13px] text-text-secondary">
-                      Direct HTML5 playback is unavailable for this title right now. The app is using an embedded fallback provider instead.
+                      Direct HTML5 playback is unavailable for this title right now. Using an embedded fallback provider instead.
                     </div>
                   </div>
                 ) : (
@@ -721,7 +492,7 @@ export default function VideoPlayer({
                       </div>
                       <h4 className="text-[20px] font-semibold text-text-primary">No playable source found</h4>
                       <p className="text-[14px] text-text-secondary">
-                        Configure a direct stream provider through `STREAM_API_URL` or add fallback media URLs so the HTML5 player can receive a valid video file or HLS manifest.
+                        Configure a direct stream provider via <code className="text-accent">STREAM_API_URL</code> or add fallback media URLs.
                       </p>
                     </div>
                   </div>
@@ -729,11 +500,10 @@ export default function VideoPlayer({
               </div>
             </div>
 
+            {/* Status + Watch Party row */}
             <div className="grid gap-3 md:grid-cols-[1.3fr_1fr]">
               <div className="rounded-[22px] border border-white/[0.06] bg-white/[0.03] p-4">
-                <p className="text-[11px] font-[family-name:var(--font-mono)] uppercase tracking-[0.16em] text-text-muted">
-                  Status
-                </p>
+                <p className="text-[11px] font-[family-name:var(--font-mono)] uppercase tracking-[0.16em] text-text-muted">Status</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className="rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-[12px] font-semibold text-accent">
                     {mediaSource ? "Direct HTML5 playback" : embedSource ? "Embedded fallback" : "Unavailable"}
@@ -756,95 +526,25 @@ export default function VideoPlayer({
                 )}
               </div>
 
-              <div className="rounded-[22px] border border-white/[0.06] bg-white/[0.03] p-4">
-                <p className="text-[11px] font-[family-name:var(--font-mono)] uppercase tracking-[0.16em] text-text-muted">
-                  Watch Party
-                </p>
-
-                {!lobbyCode ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      variant="accentSoft"
-                      size="sm"
-                      onClick={() => {
-                        setShowCreate(true);
-                        setShowJoin(false);
-                        setLobbyError("");
-                      }}
-                    >
-                      Create room
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        setShowJoin(true);
-                        setShowCreate(false);
-                        setLobbyError("");
-                      }}
-                    >
-                      Join by code
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Button variant="secondary" size="sm" onClick={copyInviteLink}>
-                      {copied ? "Copied" : "Copy invite"}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setLobbyCode(null)}>
-                      Leave room
-                    </Button>
-                  </div>
-                )}
-
-                {showCreate && !lobbyCode && (
-                  <div className="mt-4 space-y-3 rounded-[18px] border border-white/[0.06] bg-black/20 p-4">
-                    <label className="flex items-center gap-3 text-[13px] text-text-secondary">
-                      <input
-                        type="checkbox"
-                        checked={isPrivate}
-                        onChange={(event) => setIsPrivate(event.target.checked)}
-                        className="h-4 w-4 rounded border-white/20 bg-transparent accent-accent"
-                      />
-                      Private room
-                    </label>
-                    {lobbyError && <p className="text-[12px] text-crimson">{lobbyError}</p>}
-                    <div className="flex gap-2">
-                      <Button variant="primary" size="sm" onClick={createLobby} disabled={lobbyLoading}>
-                        {lobbyLoading ? "Creating…" : "Start"}
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {showJoin && !lobbyCode && (
-                  <div className="mt-4 space-y-3 rounded-[18px] border border-white/[0.06] bg-black/20 p-4">
-                    <input
-                      value={lobbyInput}
-                      onChange={(event) => setLobbyInput(event.target.value.toUpperCase())}
-                      onKeyDown={(event) => event.key === "Enter" && joinLobby()}
-                      maxLength={6}
-                      placeholder="AB12CD"
-                      className="input-dark !h-11 !rounded-2xl !px-4 !font-[family-name:var(--font-mono)] !tracking-[0.18em] uppercase"
-                    />
-                    {lobbyError && <p className="text-[12px] text-crimson">{lobbyError}</p>}
-                    <div className="flex gap-2">
-                      <Button variant="primary" size="sm" onClick={joinLobby}>
-                        Join
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setShowJoin(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <WatchPartyPanel
+                lobbyCode={lobbyCode}
+                isHost={isHost}
+                copied={copied}
+                currentUser={currentUser}
+                authToken={authToken}
+                tmdbId={tmdbId}
+                type={type}
+                title={title}
+                poster={poster}
+                onLobbyCreated={(code) => setLobbyCode(code)}
+                onLobbyJoined={(code) => setLobbyCode(code)}
+                onLeave={() => setLobbyCode(null)}
+                onCopyInvite={copyInviteLink}
+              />
             </div>
           </div>
 
+          {/* Lobby overlay */}
           {lobbyCode && (
             <div className="w-full shrink-0 xl:w-[360px]">
               <div className="h-[620px] overflow-hidden rounded-[26px] border border-white/[0.08] bg-[#0b0b12] shadow-elevated">
@@ -854,9 +554,7 @@ export default function VideoPlayer({
                   token={authToken}
                   onSyncChange={handleSyncEvent}
                   onClose={() => setLobbyCode(null)}
-                  onControllerReady={(controller) => {
-                    lobbyControllerRef.current = controller;
-                  }}
+                  onControllerReady={(controller) => { lobbyControllerRef.current = controller; }}
                   getPlaybackState={getPlaybackState}
                 />
               </div>

@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { getSocket } from "@/lib/socket";
 import Button from "./ui/Button";
+
+const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "🔥", "🎬", "👏", "😢"];
 
 function Avatar({ username, size = 32 }) {
   return (
@@ -24,6 +27,114 @@ function TypingPill({ typingUsers }) {
       : `${typingUsers[0]} and ${typingUsers.length - 1} more are typing…`;
 
   return <p className="px-1 text-[11px] text-text-muted">{label}</p>;
+}
+
+function ReactionPicker({ onSelect, onClose }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.85, y: 6 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.85, y: 6 }}
+      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+      className="absolute bottom-full right-0 mb-1 z-30 flex gap-1 rounded-2xl border border-white/[0.08] bg-[#0e0e18]/95 p-2 shadow-elevated backdrop-blur-xl"
+    >
+      {QUICK_EMOJIS.map((emoji) => (
+        <button
+          key={emoji}
+          type="button"
+          onClick={() => {
+            onSelect(emoji);
+            onClose();
+          }}
+          className="flex h-8 w-8 items-center justify-center rounded-xl text-[18px] transition-all duration-200 hover:bg-white/[0.08] hover:scale-125"
+        >
+          {emoji}
+        </button>
+      ))}
+    </motion.div>
+  );
+}
+
+function ChatMessage({ message, isMe, currentUserId, onReact }) {
+  const [showPicker, setShowPicker] = useState(false);
+
+  const reactionGroups = useMemo(() => {
+    const map = new Map();
+    for (const r of message.reactions || []) {
+      const entry = map.get(r.emoji) || { emoji: r.emoji, count: 0, mine: false };
+      entry.count += 1;
+      if (r.userId === currentUserId) entry.mine = true;
+      map.set(r.emoji, entry);
+    }
+    return Array.from(map.values());
+  }, [message.reactions, currentUserId]);
+
+  return (
+    <div className={`group flex gap-2 ${isMe ? "flex-row-reverse" : ""}`}>
+      <Avatar username={message.username} size={26} />
+      <div className={`flex max-w-[78%] flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
+        {!isMe && (
+          <span className="px-1 text-[10px] uppercase tracking-[0.12em] text-text-muted">
+            {message.username}
+          </span>
+        )}
+
+        <div className="relative">
+          <div
+            className={`rounded-2xl px-3 py-2 text-[13px] leading-6 ${
+              isMe
+                ? "rounded-br-sm bg-accent/14 text-text-primary"
+                : "rounded-bl-sm bg-white/[0.05] text-text-primary"
+            }`}
+          >
+            {message.text}
+          </div>
+
+          {/* Reaction trigger — shows on hover */}
+          <div className={`absolute top-0 ${isMe ? "left-0 -translate-x-full pr-1" : "right-0 translate-x-full pl-1"} flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowPicker((v) => !v)}
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.06] text-[12px] transition-colors hover:bg-white/[0.1]"
+              >
+                😊
+              </button>
+              <AnimatePresence>
+                {showPicker && (
+                  <ReactionPicker
+                    onSelect={(emoji) => onReact(message._id || message.sentAt, emoji)}
+                    onClose={() => setShowPicker(false)}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        {/* Reaction badges */}
+        {reactionGroups.length > 0 && (
+          <div className={`flex flex-wrap gap-1 ${isMe ? "justify-end" : "justify-start"}`}>
+            {reactionGroups.map((r) => (
+              <button
+                key={r.emoji}
+                type="button"
+                onClick={() => onReact(message._id || message.sentAt, r.emoji)}
+                className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] transition-all duration-200 ${
+                  r.mine
+                    ? "border border-accent/30 bg-accent/10 text-accent"
+                    : "border border-white/[0.08] bg-white/[0.04] text-text-secondary hover:border-white/[0.14]"
+                }`}
+              >
+                <span>{r.emoji}</span>
+                <span className="font-semibold">{r.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function LobbyOverlay({
@@ -48,9 +159,11 @@ export default function LobbyOverlay({
   const [typingUsers, setTypingUsers] = useState([]);
   const [error, setError] = useState("");
   const [connected, setConnected] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
   const [tab, setTab] = useState("chat");
   const [isReady, setIsReady] = useState(false);
   const [countdown, setCountdown] = useState(null);
+  const [showEmojiBar, setShowEmojiBar] = useState(false);
 
   const isHost = Boolean(lobby && lobby.hostId === currentUser?.userId);
 
@@ -123,6 +236,7 @@ export default function LobbyOverlay({
       setMembers(response.members || []);
       setMessages(response.messages || []);
       setConnected(true);
+      setReconnecting(false);
       onSyncChange?.(response.sync);
     });
 
@@ -170,6 +284,39 @@ export default function LobbyOverlay({
       }
     };
 
+    const handleReaction = ({ messageId, emoji, userId }) => {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          const msgId = msg._id || msg.sentAt;
+          if (String(msgId) !== String(messageId)) return msg;
+          const reactions = msg.reactions || [];
+          const exists = reactions.findIndex((r) => r.userId === userId && r.emoji === emoji);
+          if (exists >= 0) {
+            return { ...msg, reactions: reactions.filter((_, i) => i !== exists) };
+          }
+          return { ...msg, reactions: [...reactions, { userId, emoji }] };
+        })
+      );
+    };
+
+    const handleDisconnect = () => {
+      setConnected(false);
+      setReconnecting(true);
+    };
+
+    const handleReconnect = () => {
+      setReconnecting(false);
+      setConnected(true);
+      // Re-join lobby after reconnect
+      socket.emit("lobby:join", { code: lobbyCode }, (response) => {
+        if (!response?.error) {
+          setLobby(response.lobby);
+          setMembers(response.members || []);
+          onSyncChange?.(response.sync);
+        }
+      });
+    };
+
     socket.on("lobby:member-joined", handleMemberJoined);
     socket.on("lobby:member-left", handleMemberLeft);
     socket.on("lobby:host-changed", handleHostChanged);
@@ -177,6 +324,9 @@ export default function LobbyOverlay({
     socket.on("lobby:ready-update", handleReadyUpdate);
     socket.on("lobby:typing", handleTyping);
     socket.on("lobby:sync", handleSync);
+    socket.on("lobby:reaction", handleReaction);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("reconnect", handleReconnect);
 
     return () => {
       socket.off("lobby:member-joined", handleMemberJoined);
@@ -186,6 +336,9 @@ export default function LobbyOverlay({
       socket.off("lobby:ready-update", handleReadyUpdate);
       socket.off("lobby:typing", handleTyping);
       socket.off("lobby:sync", handleSync);
+      socket.off("lobby:reaction", handleReaction);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("reconnect", handleReconnect);
     };
   }, [currentUser, lobbyCode, onSyncChange, startCountdown, token]);
 
@@ -225,6 +378,31 @@ export default function LobbyOverlay({
     setChatInput("");
     sendTypingState(false);
   }, [chatInput, sendTypingState]);
+
+  const sendEmojiReaction = useCallback((messageId, emoji) => {
+    if (!socketRef.current || !currentUser) return;
+    socketRef.current.emit("lobby:reaction", { messageId, emoji });
+    // Optimistic update
+    setMessages((prev) =>
+      prev.map((msg) => {
+        const msgId = msg._id || msg.sentAt;
+        if (String(msgId) !== String(messageId)) return msg;
+        const reactions = msg.reactions || [];
+        const exists = reactions.findIndex(
+          (r) => r.userId === currentUser.userId && r.emoji === emoji
+        );
+        if (exists >= 0) {
+          return { ...msg, reactions: reactions.filter((_, i) => i !== exists) };
+        }
+        return { ...msg, reactions: [...reactions, { userId: currentUser.userId, emoji }] };
+      })
+    );
+  }, [currentUser]);
+
+  const insertEmoji = useCallback((emoji) => {
+    setChatInput((prev) => prev + emoji);
+    setShowEmojiBar(false);
+  }, []);
 
   const toggleReady = useCallback(() => {
     if (!socketRef.current) return;
@@ -267,7 +445,7 @@ export default function LobbyOverlay({
     );
   }
 
-  if (!connected) {
+  if (!connected && !reconnecting) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="h-7 w-7 rounded-full border-2 border-accent/40 border-t-accent animate-spin" />
@@ -277,16 +455,49 @@ export default function LobbyOverlay({
 
   return (
     <div className="relative flex h-full flex-col">
-      {countdown !== null && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/72 backdrop-blur-sm">
-          <span className="text-[96px] font-black text-accent">{countdown}</span>
-        </div>
-      )}
+      {/* Countdown overlay */}
+      <AnimatePresence>
+        {countdown !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/72 backdrop-blur-sm"
+          >
+            <motion.span
+              key={countdown}
+              initial={{ scale: 1.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.6, opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="text-[96px] font-black text-accent"
+            >
+              {countdown}
+            </motion.span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
+      {/* Reconnecting banner */}
+      <AnimatePresence>
+        {reconnecting && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            className="absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 bg-amber/10 px-4 py-2 text-[12px] font-semibold text-amber"
+          >
+            <div className="h-3 w-3 rounded-full border-2 border-amber/40 border-t-amber animate-spin" />
+            Reconnecting…
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
       <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+            <span className={`h-2 w-2 rounded-full ${connected ? "bg-success animate-pulse" : "bg-amber"}`} />
             <p className="truncate text-[14px] font-semibold text-text-primary">
               {lobby?.movieTitle || "Watch Party"}
             </p>
@@ -304,6 +515,7 @@ export default function LobbyOverlay({
         </Button>
       </div>
 
+      {/* Host / Ready controls */}
       {isHost ? (
         <div className="border-b border-white/[0.06] px-4 py-3">
           <p className="mb-2 text-[10px] font-[family-name:var(--font-mono)] uppercase tracking-[0.16em] text-text-muted">
@@ -348,6 +560,7 @@ export default function LobbyOverlay({
         </div>
       )}
 
+      {/* Tabs */}
       <div className="flex gap-1 px-3 pt-3">
         {[
           { id: "chat", label: "Chat" },
@@ -368,6 +581,7 @@ export default function LobbyOverlay({
         ))}
       </div>
 
+      {/* Tab content */}
       {tab === "members" ? (
         <div className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
           {orderedMembers.map((member) => (
@@ -402,25 +616,13 @@ export default function LobbyOverlay({
                 {messages.map((message, index) => {
                   const isMe = message.userId === currentUser?.userId;
                   return (
-                    <div key={`${message.userId}-${message.sentAt}-${index}`} className={`flex gap-2 ${isMe ? "flex-row-reverse" : ""}`}>
-                      <Avatar username={message.username} size={26} />
-                      <div className={`flex max-w-[78%] flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
-                        {!isMe && (
-                          <span className="px-1 text-[10px] uppercase tracking-[0.12em] text-text-muted">
-                            {message.username}
-                          </span>
-                        )}
-                        <div
-                          className={`rounded-2xl px-3 py-2 text-[13px] leading-6 ${
-                            isMe
-                              ? "rounded-br-sm bg-accent/14 text-text-primary"
-                              : "rounded-bl-sm bg-white/[0.05] text-text-primary"
-                          }`}
-                        >
-                          {message.text}
-                        </div>
-                      </div>
-                    </div>
+                    <ChatMessage
+                      key={`${message.userId}-${message.sentAt}-${index}`}
+                      message={message}
+                      isMe={isMe}
+                      currentUserId={currentUser?.userId}
+                      onReact={sendEmojiReaction}
+                    />
                   );
                 })}
                 <div ref={messagesEndRef} />
@@ -430,7 +632,43 @@ export default function LobbyOverlay({
 
           <div className="space-y-2 border-t border-white/[0.06] px-3 py-3">
             <TypingPill typingUsers={typingUsers} />
+
+            {/* Quick emoji bar */}
+            <AnimatePresence>
+              {showEmojiBar && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="flex flex-wrap gap-1 overflow-hidden"
+                >
+                  {QUICK_EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => insertEmoji(emoji)}
+                      className="flex h-8 w-8 items-center justify-center rounded-xl text-[18px] transition-all duration-200 hover:bg-white/[0.08] hover:scale-125"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowEmojiBar((v) => !v)}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[18px] transition-all duration-200 ${
+                  showEmojiBar
+                    ? "bg-accent/10 text-accent"
+                    : "bg-white/[0.04] text-text-muted hover:bg-white/[0.08] hover:text-text-primary"
+                }`}
+              >
+                😊
+              </button>
               <input
                 value={chatInput}
                 onChange={(event) => handleChatInput(event.target.value)}

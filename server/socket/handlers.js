@@ -285,6 +285,18 @@ export function registerSocketHandlers(io) {
     });
 
     /* ════════════════════════════════════
+       LOBBY:REACTION — emoji reaction on message
+       ════════════════════════════════════ */
+    socket.on("lobby:reaction", async ({ messageId, emoji }, cb) => {
+      if (!currentLobbyCode) return cb?.({ error: "Not in a lobby" });
+      if (!emoji || typeof emoji !== "string") return cb?.({ error: "Invalid emoji" });
+
+      // Broadcast to everyone in the room (optimistic on sender side already)
+      io.to(currentLobbyCode).emit("lobby:reaction", { messageId, emoji, userId });
+      cb?.({ ok: true });
+    });
+
+    /* ════════════════════════════════════
        LOBBY:READY — участник готов к старту
        ════════════════════════════════════ */
     socket.on("lobby:ready", async ({ isReady }, cb) => {

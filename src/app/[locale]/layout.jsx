@@ -5,6 +5,7 @@ import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import { routing } from "@/i18n/routing";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import PageTransition from "@/components/PageTransition";
 import "../globals.css";
 
 const inter = Inter({
@@ -69,7 +70,9 @@ export default async function LocaleLayout({ children, params }) {
       <body className="min-h-screen flex flex-col">
         <NextIntlClientProvider messages={messages}>
           <Header />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1">
+            <PageTransition>{children}</PageTransition>
+          </main>
           <Footer />
         </NextIntlClientProvider>
       </body>

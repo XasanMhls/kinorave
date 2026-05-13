@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { Link } from "@/lib/navigation";
 import { getImageUrl } from "@/lib/tmdb";
 
@@ -13,7 +14,11 @@ export default function MovieCard({ movie, type = "movie" }) {
 
   return (
     <Link href={href} className="group block">
-      <div className="relative aspect-[2/3] rounded-[20px] overflow-hidden bg-bg-card border border-white/[0.05] poster-hover-tilt">
+      <motion.div
+        className="relative aspect-[2/3] rounded-[20px] overflow-hidden bg-bg-card border border-white/[0.05]"
+        whileHover={{ y: -10, scale: 1.03 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      >
         {poster ? (
           <Image
             src={poster}
@@ -33,7 +38,7 @@ export default function MovieCard({ movie, type = "movie" }) {
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent opacity-70 group-hover:opacity-100 transition-opacity duration-500" />
 
-        {/* Rating stamp — top-left, editorial mono */}
+        {/* Rating stamp */}
         {rating > 0 && (
           <div className="absolute top-3 left-3 flex items-center gap-1 backdrop-blur-xl bg-black/40 border border-white/10 rounded-full px-2.5 py-1">
             <svg className="w-3 h-3 text-accent" fill="currentColor" viewBox="0 0 20 20">
@@ -47,22 +52,32 @@ export default function MovieCard({ movie, type = "movie" }) {
 
         {/* Play button */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-16 h-16 rounded-full bg-accent flex items-center justify-center opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100 transition-all duration-500 shadow-[0_0_50px_rgba(185,255,102,0.5)]">
+          <motion.div
+            className="w-16 h-16 rounded-full bg-accent flex items-center justify-center shadow-[0_0_50px_rgba(185,255,102,0.5)]"
+            initial={{ opacity: 0, scale: 0.4 }}
+            whileHover={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          >
             <svg className="w-6 h-6 text-text-inverse ml-0.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
-          </div>
+          </motion.div>
         </div>
 
         {/* Bottom title on hover */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
+        <motion.div
+          className="absolute bottom-0 left-0 right-0 p-4"
+          initial={{ y: 10, opacity: 0 }}
+          whileHover={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        >
           <p className="text-white text-[13px] font-[family-name:var(--font-display)] italic leading-tight line-clamp-2">
             {title}
           </p>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
-      {/* Title under card — editorial serif */}
+      {/* Title under card */}
       <div className="mt-4 px-1">
         <h3
           className="text-[15px] font-[family-name:var(--font-display)] text-text-primary/85 group-hover:text-accent transition-colors duration-300 truncate leading-snug"

@@ -50,7 +50,7 @@ export default async function SeriesDetailPage({ params }) {
 
   return (
     <>
-      <div className="relative h-[60vh] min-h-[420px] -mt-[72px]">
+      <div className="relative h-[60vh] min-h-[420px] -mt-[88px]">
         {backdrop && <Image src={backdrop} alt="" fill className="object-cover object-[50%_20%]" priority quality={85} sizes="100vw" />}
         <div className="absolute inset-0 bg-gradient-to-r from-bg-primary/95 via-bg-primary/60 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-t from-bg-primary via-transparent to-bg-primary/30" />
