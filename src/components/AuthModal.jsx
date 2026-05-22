@@ -7,11 +7,39 @@ import styles from "./AuthModal.module.css";
 const initialLogin = { email: "", password: "" };
 const initialRegister = { username: "", email: "", password: "" };
 
+function EyeOpen() {
+  return (
+    <svg className={styles.eyeIcon} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeClosed() {
+  return (
+    <svg className={styles.eyeIcon} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" strokeLinecap="round" />
+      <line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function FilmIcon() {
+  return (
+    <svg fill="currentColor" viewBox="0 0 24 24" width="20" height="20">
+      <path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z" />
+    </svg>
+  );
+}
+
 export default function AuthModal({ isOpen, onClose, onAuth }) {
+  const [tab, setTab] = useState("login");
   const [loginForm, setLoginForm] = useState(initialLogin);
   const [registerForm, setRegisterForm] = useState(initialRegister);
   const [error, setError] = useState({ login: "", register: "" });
   const [loading, setLoading] = useState({ login: false, register: false });
+  const [showPass, setShowPass] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -19,241 +47,273 @@ export default function AuthModal({ isOpen, onClose, onAuth }) {
     setRegisterForm(initialRegister);
     setError({ login: "", register: "" });
     setLoading({ login: false, register: false });
+    setShowPass(false);
+    setTab("login");
   }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
-    const onKey = (event) => {
-      if (event.key === "Escape") onClose();
-    };
-
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
-
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
   }, [isOpen, onClose]);
 
-  function updateForm(type, field, value) {
-    if (type === "login") {
-      setLoginForm((current) => ({ ...current, [field]: value }));
-    } else {
-      setRegisterForm((current) => ({ ...current, [field]: value }));
-    }
-    setError((current) => ({ ...current, [type]: "" }));
+  function update(type, field, value) {
+    if (type === "login") setLoginForm((p) => ({ ...p, [field]: value }));
+    else setRegisterForm((p) => ({ ...p, [field]: value }));
+    setError((p) => ({ ...p, [type]: "" }));
   }
 
-  async function handleSubmit(type, event) {
-    event.preventDefault();
-    setError((current) => ({ ...current, [type]: "" }));
-    setLoading((current) => ({ ...current, [type]: true }));
-
+  async function handleSubmit(type, e) {
+    e.preventDefault();
+    setError((p) => ({ ...p, [type]: "" }));
+    setLoading((p) => ({ ...p, [type]: true }));
     try {
       const endpoint = type === "login" ? "/api/auth/login" : "/api/auth/register";
       const body = type === "login" ? loginForm : registerForm;
-      const response = await fetch(endpoint, {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError((current) => ({ ...current, [type]: data.error || "Something went wrong" }));
+      const data = await res.json();
+      if (!res.ok) {
+        setError((p) => ({ ...p, [type]: data.error || "Что-то пошло не так" }));
         return;
       }
-
       onAuth(data.user);
       onClose();
     } catch {
-      setError((current) => ({ ...current, [type]: "Network error" }));
+      setError((p) => ({ ...p, [type]: "Ошибка сети. Попробуйте ещё раз." }));
     } finally {
-      setLoading((current) => ({ ...current, [type]: false }));
+      setLoading((p) => ({ ...p, [type]: false }));
     }
   }
+
+  const isLogin = tab === "login";
+  const activeLoading = isLogin ? loading.login : loading.register;
+  const activeError = isLogin ? error.login : error.register;
 
   return (
     <AnimatePresence>
       {isOpen && (
-    <div className="fixed inset-0 z-[100] overflow-y-auto p-4 sm:p-6 lg:p-10">
-      <motion.div
-        className="absolute inset-0 bg-[rgba(3,3,8,0.84)] backdrop-blur-2xl"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.25 }}
-        onClick={onClose}
-      />
-
-      <div className={`relative mx-auto flex min-h-full items-center justify-center ${styles.shell}`}>
-        <motion.div
-          className={styles.modalCard}
-          initial={{ opacity: 0, scale: 0.94, y: 24 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 16 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <button
+        <div className={styles.overlay}>
+          <motion.div
+            className={styles.backdrop}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
             onClick={onClose}
-            aria-label="Close"
-            className="absolute right-5 top-5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-text-secondary transition-all duration-300 hover:border-white/[0.16] hover:bg-white/[0.08] hover:text-text-primary"
+          />
+
+          <motion.div
+            className={styles.card}
+            initial={{ opacity: 0, scale: 0.94, y: 32 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 16 }}
+            transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+            {/* Film strip right edge */}
+            <div className={styles.filmStrip} />
 
-          <aside className={styles.introPanel}>
-            <div className={styles.introGlow} />
-            <p className="mono-label-accent">Member Access</p>
-            <div className="space-y-5">
-              <h2 className="display-md max-w-[10ch]">
-                Your private
-                <span className="display-italic gradient-text"> cinema lounge.</span>
+            {/* Close */}
+            <button onClick={onClose} className={styles.close} aria-label="Закрыть">
+              <svg fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" width="13" height="13">
+                <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className={styles.inner}>
+              {/* Brand */}
+              <div className={styles.brand}>
+                <div className={styles.brandIcon}>
+                  <FilmIcon />
+                </div>
+                <div>
+                  <div className={styles.brandName}>KINO</div>
+                  <div className={styles.brandSub}>Онлайн кинотеатр</div>
+                </div>
+              </div>
+
+              {/* Headline */}
+              <h2 className={styles.headline}>
+                {isLogin ? "Вход в систему" : "Регистрация"}
               </h2>
-              <p className="max-w-[34ch] text-[15px] leading-7 text-text-secondary">
-                Sign in to keep your profile close, or create a new account in a separate flow without cramped tabs and crowded fields.
+              <p className={styles.subtitle}>
+                {isLogin
+                  ? "Войдите, чтобы продолжить просмотр."
+                  : "Создайте аккаунт и смотрите вместе."}
               </p>
+
+              {/* Tabs */}
+              <div className={styles.tabs}>
+                <button
+                  type="button"
+                  className={`${styles.tab} ${isLogin ? styles.tabActive : ""}`}
+                  onClick={() => { setTab("login"); setShowPass(false); }}
+                >
+                  Войти
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.tab} ${!isLogin ? styles.tabActive : ""}`}
+                  onClick={() => { setTab("register"); setShowPass(false); }}
+                >
+                  Регистрация
+                </button>
+              </div>
+
+              {/* Forms */}
+              <AnimatePresence mode="wait" initial={false}>
+                {isLogin ? (
+                  <motion.form
+                    key="login"
+                    className={styles.form}
+                    onSubmit={(e) => handleSubmit("login", e)}
+                    initial={{ opacity: 0, x: -16 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 16 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <label className={styles.field}>
+                      <span className={styles.label}>Email</span>
+                      <input
+                        type="email"
+                        placeholder="you@example.com"
+                        value={loginForm.email}
+                        onChange={(e) => update("login", "email", e.target.value)}
+                        required
+                        autoComplete="email"
+                        className={styles.input}
+                      />
+                    </label>
+
+                    <label className={styles.field}>
+                      <span className={styles.label}>Пароль</span>
+                      <div className={styles.passWrap}>
+                        <input
+                          type={showPass ? "text" : "password"}
+                          placeholder="Введите пароль"
+                          value={loginForm.password}
+                          onChange={(e) => update("login", "password", e.target.value)}
+                          required
+                          minLength={6}
+                          autoComplete="current-password"
+                          className={`${styles.input} ${styles.inputPass}`}
+                        />
+                        <button
+                          type="button"
+                          className={styles.eye}
+                          onClick={() => setShowPass((v) => !v)}
+                          aria-label={showPass ? "Скрыть пароль" : "Показать пароль"}
+                          tabIndex={-1}
+                        >
+                          {showPass ? <EyeClosed /> : <EyeOpen />}
+                        </button>
+                      </div>
+                    </label>
+
+                    {activeError && <p className={styles.error}>{activeError}</p>}
+
+                    <button type="submit" disabled={activeLoading} className={styles.btn}>
+                      {activeLoading
+                        ? <span className={styles.spinner} />
+                        : <>Войти в систему <span className={styles.arrow}>→</span></>}
+                    </button>
+
+                    <button type="button" className={styles.forgot}>
+                      Забыли пароль?
+                    </button>
+                  </motion.form>
+                ) : (
+                  <motion.form
+                    key="register"
+                    className={styles.form}
+                    onSubmit={(e) => handleSubmit("register", e)}
+                    initial={{ opacity: 0, x: 16 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -16 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <label className={styles.field}>
+                      <span className={styles.label}>Имя пользователя</span>
+                      <input
+                        type="text"
+                        placeholder="Выберите имя"
+                        value={registerForm.username}
+                        onChange={(e) => update("register", "username", e.target.value)}
+                        required
+                        minLength={3}
+                        autoComplete="username"
+                        className={styles.input}
+                      />
+                    </label>
+
+                    <label className={styles.field}>
+                      <span className={styles.label}>Email</span>
+                      <input
+                        type="email"
+                        placeholder="you@example.com"
+                        value={registerForm.email}
+                        onChange={(e) => update("register", "email", e.target.value)}
+                        required
+                        autoComplete="email"
+                        className={styles.input}
+                      />
+                    </label>
+
+                    <label className={styles.field}>
+                      <span className={styles.label}>Пароль</span>
+                      <div className={styles.passWrap}>
+                        <input
+                          type={showPass ? "text" : "password"}
+                          placeholder="Придумайте пароль"
+                          value={registerForm.password}
+                          onChange={(e) => update("register", "password", e.target.value)}
+                          required
+                          minLength={6}
+                          autoComplete="new-password"
+                          className={`${styles.input} ${styles.inputPass}`}
+                        />
+                        <button
+                          type="button"
+                          className={styles.eye}
+                          onClick={() => setShowPass((v) => !v)}
+                          aria-label={showPass ? "Скрыть пароль" : "Показать пароль"}
+                          tabIndex={-1}
+                        >
+                          {showPass ? <EyeClosed /> : <EyeOpen />}
+                        </button>
+                      </div>
+                    </label>
+
+                    {activeError && <p className={styles.error}>{activeError}</p>}
+
+                    <button type="submit" disabled={activeLoading} className={styles.btn}>
+                      {activeLoading
+                        ? <span className={styles.spinner} />
+                        : <>Создать аккаунт <span className={styles.arrow}>→</span></>}
+                    </button>
+                  </motion.form>
+                )}
+              </AnimatePresence>
             </div>
 
-            <div className={styles.featureList}>
-              <div className={styles.featureItem}>
-                <span className={styles.featureIndex}>01</span>
-                <div>
-                  <p className={styles.featureTitle}>Clear split</p>
-                  <p className={styles.featureText}>Login and registration live in their own cards.</p>
-                </div>
-              </div>
-              <div className={styles.featureItem}>
-                <span className={styles.featureIndex}>02</span>
-                <div>
-                  <p className={styles.featureTitle}>Editorial spacing</p>
-                  <p className={styles.featureText}>More air, stronger hierarchy, cleaner focus.</p>
-                </div>
-              </div>
-              <div className={styles.featureItem}>
-                <span className={styles.featureIndex}>03</span>
-                <div>
-                  <p className={styles.featureTitle}>Fast access</p>
-                  <p className={styles.featureText}>Same auth API, cleaner surface.</p>
-                </div>
-              </div>
+            {/* Footer */}
+            <div className={styles.footer}>
+              <span className={styles.footerText}>KINO</span>
+              <div className={styles.footerDot} />
+              <span className={styles.footerText}>Смотрите вместе</span>
+              <div className={styles.footerDot} />
+              <span className={styles.footerText}>2025</span>
             </div>
-          </aside>
-
-          <div className={styles.formsGrid}>
-            <section className={styles.formCard}>
-              <div className="space-y-3">
-                <p className="mono-label">Returning member</p>
-                <div className="space-y-2">
-                  <h3 className={styles.cardTitle}>Login</h3>
-                  <p className={styles.cardText}>Continue watching, commenting, and keeping your profile synced.</p>
-                </div>
-              </div>
-
-              <form className="space-y-4" onSubmit={(event) => handleSubmit("login", event)}>
-                <label className={styles.field}>
-                  <span className={styles.label}>Email</span>
-                  <input
-                    type="email"
-                    placeholder="you@example.com"
-                    value={loginForm.email}
-                    onChange={(event) => updateForm("login", "email", event.target.value)}
-                    required
-                    className={styles.input}
-                  />
-                </label>
-
-                <label className={styles.field}>
-                  <span className={styles.label}>Password</span>
-                  <input
-                    type="password"
-                    placeholder="Enter your password"
-                    value={loginForm.password}
-                    onChange={(event) => updateForm("login", "password", event.target.value)}
-                    required
-                    minLength={6}
-                    className={styles.input}
-                  />
-                </label>
-
-                {error.login && <p className={styles.error}>{error.login}</p>}
-
-                <button type="submit" disabled={loading.login} className={`btn-primary w-full ${styles.submitButton}`}>
-                  {loading.login ? (
-                    <span className="h-5 w-5 rounded-full border-2 border-text-inverse/30 border-t-text-inverse animate-spin" />
-                  ) : (
-                    "Sign In"
-                  )}
-                </button>
-              </form>
-            </section>
-
-            <section className={`${styles.formCard} ${styles.formCardAccent}`}>
-              <div className="space-y-3">
-                <p className="mono-label-accent">New account</p>
-                <div className="space-y-2">
-                  <h3 className={styles.cardTitle}>Register</h3>
-                  <p className={styles.cardText}>Create a profile in a dedicated card with room for every field.</p>
-                </div>
-              </div>
-
-              <form className="space-y-4" onSubmit={(event) => handleSubmit("register", event)}>
-                <label className={styles.field}>
-                  <span className={styles.label}>Username</span>
-                  <input
-                    type="text"
-                    placeholder="Choose a username"
-                    value={registerForm.username}
-                    onChange={(event) => updateForm("register", "username", event.target.value)}
-                    required
-                    minLength={3}
-                    className={styles.input}
-                  />
-                </label>
-
-                <label className={styles.field}>
-                  <span className={styles.label}>Email</span>
-                  <input
-                    type="email"
-                    placeholder="you@example.com"
-                    value={registerForm.email}
-                    onChange={(event) => updateForm("register", "email", event.target.value)}
-                    required
-                    className={styles.input}
-                  />
-                </label>
-
-                <label className={styles.field}>
-                  <span className={styles.label}>Password</span>
-                  <input
-                    type="password"
-                    placeholder="Create a strong password"
-                    value={registerForm.password}
-                    onChange={(event) => updateForm("register", "password", event.target.value)}
-                    required
-                    minLength={6}
-                    className={styles.input}
-                  />
-                </label>
-
-                {error.register && <p className={styles.error}>{error.register}</p>}
-
-                <button type="submit" disabled={loading.register} className={`btn-primary w-full ${styles.submitButton}`}>
-                  {loading.register ? (
-                    <span className="h-5 w-5 rounded-full border-2 border-text-inverse/30 border-t-text-inverse animate-spin" />
-                  ) : (
-                    "Create Account"
-                  )}
-                </button>
-              </form>
-            </section>
-          </div>
-        </motion.div>
-      </div>
-    </div>
+          </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );

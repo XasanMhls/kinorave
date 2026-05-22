@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: #07070d;
+    color: #ffffff;
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(124, 58, 237, 0.4);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(124, 58, 237, 0.7);
+  }
+
+  ::selection {
+    background: rgba(124, 58, 237, 0.4);
+    color: #fff;
+  }
+}
+
+@layer components {
+  /* Glass card */
+  .glass {
+    @apply bg-bg-elevated/60 backdrop-blur-xl border border-border-subtle;
+  }
+  .glass-strong {
+    @apply bg-bg-surface/80 backdrop-blur-2xl border border-border;
+  }
+
+  /* Premium button */
+  .btn-primary {
+    @apply relative inline-flex items-center justify-center gap-2
+           px-5 py-2.5 rounded-xl font-semibold text-sm text-white
+           bg-accent-gradient shadow-glow-sm
+           transition-all duration-200
+           hover:shadow-glow hover:scale-[1.02] active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           px-5 py-2.5 rounded-xl font-semibold text-sm text-white
+           bg-bg-elevated border border-border
+           transition-all duration-200
+           hover:bg-bg-overlay hover:border-border-strong active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           px-4 py-2 rounded-lg font-medium text-sm text-text-secondary
+           transition-all duration-200
+           hover:text-white hover:bg-white/5 active:scale-[0.98];
+  }
+
+  /* Premium input */
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl text-sm text-white
+           bg-bg-elevated border border-border
+           placeholder:text-text-muted
+           transition-all duration-200
+           focus:outline-none focus:border-accent focus:shadow-glow-sm focus:bg-bg-elevated
+           disabled:opacity-50;
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    @apply bg-bg-elevated rounded-xl overflow-hidden relative;
+    background: linear-gradient(90deg, #161625 25%, #1e1e30 50%, #161625 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Card hover effect */
+  .movie-card-hover {
+    @apply transition-all duration-300 cursor-pointer
+           hover:scale-[1.04] hover:-translate-y-1;
+  }
+
+  /* Scrollable row */
+  .scroll-row {
+    @apply flex gap-4 overflow-x-auto pb-2;
+    scrollbar-width: none;
+  }
+  .scroll-row::-webkit-scrollbar { display: none; }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-accent-gradient;
+  }
+  .border-gradient {
+    border-image: linear-gradient(135deg, #7c3aed, #a855f7) 1;
+  }
+  .no-select {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+/* ── Autofill override ──────────────────────────────────────
+   Prevents Chrome from replacing input backgrounds with
+   white/yellow on autofill — keeps dark theme intact.
+   ─────────────────────────────────────────────────────────── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #161625 inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #a855f7;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ── Input text always visible ──────────────────────────────
+   Explicit overrides so input text is never invisible.
+   ─────────────────────────────────────────────────────────── */
+input, textarea, select {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+input::placeholder, textarea::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.28);
+}

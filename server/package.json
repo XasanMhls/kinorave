@@ -9,11 +9,13 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "@consumet/extensions": "^1.8.8",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "mongoose": "^9.4.1",
+    "nanoid": "^5.1.11",
     "socket.io": "^4.7.5"
   }
 }

@@ -20,8 +20,11 @@ function verifyToken(token, secret) {
 
 export function authMiddleware(req, res, next) {
   const secret = process.env.JWT_SECRET;
+  // Accept Bearer header or cookie
   const header = req.headers.authorization;
-  const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
+  const token = header?.startsWith("Bearer ")
+    ? header.slice(7)
+    : req.cookies?.auth_token || null;
 
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" });

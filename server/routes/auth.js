@@ -67,7 +67,7 @@ router.post("/register", async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: "/",
     });
-    res.json({ user: { id: user._id, username: user.username, email: user.email } });
+    res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
   } catch {
     res.status(500).json({ error: "Ошибка регистрации" });
   }
@@ -94,7 +94,7 @@ router.post("/login", async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: "/",
     });
-    res.json({ user: { id: user._id, username: user.username, email: user.email } });
+    res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
   } catch {
     res.status(500).json({ error: "Ошибка входа" });
   }
@@ -109,7 +109,9 @@ router.post("/logout", (req, res) => {
 // GET /api/auth/me
 router.get("/me", (req, res) => {
   const user = getAuthUser(req);
-  res.json({ user });
+  // Also return the raw token so client can use it for socket auth
+  const token = req.cookies?.auth_token || (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
+  res.json({ user, token: user ? token : null });
 });
 
 export default router;

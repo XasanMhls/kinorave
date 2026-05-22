@@ -1,189 +1,128 @@
-CRITICAL OVERRIDE PATCH — MUST FIX NOW
+EMERGENCY PLAYBACK OVERRIDE — HIGHEST PRIORITY
 
-The current result is NOT acceptable.
+STOP all other work.
 
-The app still looks cheap and unfinished.
-It still feels like basic HTML + simple CSS instead of a premium product.
+Movies and TV series still do NOT play.
+This is the #1 critical blocker.
 
-You must immediately refactor and redesign the following:
+You must fix playback completely before anything else.
 
-================================
-1. VIDEO PLAYER IS BROKEN
-================================
+==================================================
+1. ROOT CAUSE ANALYSIS
+==================================================
 
-Main issue:
-Movies are not playing correctly.
-Player shows fallback/errors.
-Video experience is unreliable.
+Inspect everything related to playback:
 
-Fix all video logic:
-- inspect entire player architecture
-- fix stream source handling
-- fix embedded fallback logic
-- fix loading states
-- fix broken iframe handling
-- fix direct html5 playback
-- add proper buffering UI
-- add retry logic
-- add error recovery
-- fullscreen support
-- subtitle support if possible
-- volume controls
-- progress sync
-- autoplay fix
+Frontend:
+- movie pages
+- series pages
+- watch page
+- player component
+- watch button
+- React Router routes
+- route params
+- TMDb fetch logic
+- stream URL generation
+- player props
 
-Result:
-Movie must play reliably like real streaming apps.
+Backend:
+- API routes
+- proxy routes
+- controllers
+- env variables
+- CORS
+- stream endpoints
+- socket side effects
 
-Reference:
-Rave / Netflix quality playback.
+Debug:
+- browser console
+- network tab
+- terminal logs
+- failed requests
+- 404
+- 401
+- 500
+- CORS failures
 
-================================
-2. WATCH PARTY MUST FEEL LIKE RAVE
-================================
+Find exact root cause.
 
-Current watch party looks unfinished.
+==================================================
+2. FIX BY ANY MEANS NECESSARY
+==================================================
 
-Rebuild:
-- premium room creation modal
-- invite friends UI
-- copy invite link button
-- beautiful join by code modal
-- avatars
-- live member list
-- host badge
-- sync status indicator
-- animated room status
-- realtime updates
+You have permission to replace anything:
 
-Must feel premium.
+- replace movie provider
+- replace stream provider
+- replace player library
+- replace backend routes
+- rewrite player logic
+- rewrite watch routes
+- rewrite fetch logic
 
-================================
-3. LOGIN UI IS CHEAP
-================================
+Allowed players:
+- React Player
+- Video.js
+- HLS.js
+- Plyr
 
-Current login button looks bad.
+Pick the best one.
 
-Rebuild:
-- premium auth modal
-- beautiful sign in / sign up
-- social auth buttons
-- animated transitions
-- proper form validation
-- loading indicators
-- better spacing
-- premium buttons
+Goal:
+movie must play.
 
-Must feel startup-grade.
+==================================================
+3. WATCH BUTTON MUST WORK
+==================================================
 
-================================
-4. COMMENTS SECTION LOOKS TERRIBLE
-================================
+Fix:
+clicking Watch must navigate correctly.
 
-Current comments area is ugly.
+Examples:
+ /movie/:id
+ /watch/:id
 
-Rebuild:
-- modern comment card design
-- avatars
-- timestamps
-- smooth textarea
-- send button redesign
-- reactions
-- typing state
-- empty state
-- skeleton loading
+No dead buttons.
+No broken routes.
 
-Must look premium.
+==================================================
+4. SERIES TOO
+==================================================
 
-================================
-5. FULL CSS REBUILD
-================================
+Same for TV series:
+must open and play.
 
-Delete cheap styling.
+==================================================
+5. FALLBACK SYSTEM
+==================================================
 
-Remove:
-- old css
-- plain borders
-- default buttons
-- ugly spacing
-- old shadows
-- inconsistent fonts
-- weak colors
+If provider A fails:
+fallback to provider B automatically.
 
-Replace with:
-- design system
-- reusable tokens
-- spacing scale
-- premium typography
-- glassmorphism
-- gradients
-- blur
-- animations
-- hover states
-- polished cards
-- modern forms
-- beautiful navbar
+No blank player.
 
-Use:
-Tailwind best practices
-or rebuild component styles cleanly.
+==================================================
+6. TESTING
+==================================================
 
-NO ugly CSS allowed.
+Manually test at least:
+- 3 movies
+- 3 series
 
-================================
-6. NAVBAR + HEADER
-================================
+Verify:
+- opens
+- loads
+- starts
+- audio works
+- fullscreen works
 
-Current navbar still feels basic.
+Do not stop until confirmed working.
 
-Make:
-- premium sticky navbar
-- blur background
-- animated active tabs
-- better language selector
-- better search
-- premium login button
-- responsive mobile nav
+==================================================
+7. THEN UI FIXES
+==================================================
 
-================================
-7. RESPONSIVENESS
-================================
-
-Fix all broken mobile layouts.
-No overlapping.
-No cut elements.
-No tiny buttons.
-
-================================
-8. FINAL VISUAL GOAL
-================================
-
-It must look like:
-- https://rave.io
-- https://www.netflix.com
-- https://www.apple.com
-premium quality.
-
-NOT student project.
-NOT template.
-NOT basic html.
-
-It must feel funded startup level.
-
-================================
-9. FINAL TEST
-================================
-
-After all changes:
-run app
-open browser
-verify:
-- movie plays
-- watch party works
-- comments work
-- login works
-- UI looks premium
-- no visual bugs
-- no console errors
-
-Do not stop until everything is fixed.
+After playback works:
+- fix search text visibility
+- improve auth like https://space.marsit.uz/
+- polish remaining UI

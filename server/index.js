@@ -3,9 +3,12 @@ import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import mongoose from "mongoose";
+import authRouter from "./routes/auth.js";
 import friendsRouter from "./routes/friends.js";
 import lobbyRouter from "./routes/lobby.js";
+import streamRouter from "./routes/stream.js";
 import { registerSocketHandlers } from "./socket/handlers.js";
 
 const PORT = process.env.PORT || 3001;
@@ -31,11 +34,14 @@ app.use(cors({
   },
   credentials: true,
 }));
+app.use(cookieParser());
 app.use(express.json());
 
 /* ─── Routes ─── */
+app.use("/api/auth", authRouter);
 app.use("/api/friends", friendsRouter);
 app.use("/api/lobby", lobbyRouter);
+app.use("/api/stream", streamRouter);
 
 app.get("/health", (_, res) => res.json({ ok: true, ts: Date.now() }));
 

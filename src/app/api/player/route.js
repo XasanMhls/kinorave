@@ -20,12 +20,28 @@ const EMBED_PROVIDERS = [
         : `https://vidlink.pro/movie/${tmdbId}?primaryColor=B9FF66&secondaryColor=06060a&iconColor=B9FF66&icons=vid&title=true&poster=true`,
   },
   {
-    id: "vidsrc",
+    id: "vidsrc-icu",
     label: "VidSrc",
     build: ({ tmdbId, type, season, episode }) =>
       type === "tv" && season && episode
         ? `https://vidsrc.icu/embed/tv/${tmdbId}/${season}/${episode}`
         : `https://vidsrc.icu/embed/movie/${tmdbId}`,
+  },
+  {
+    id: "embedsu",
+    label: "EmbedSu",
+    build: ({ tmdbId, type, season, episode }) =>
+      type === "tv" && season && episode
+        ? `https://embed.su/embed/tv/${tmdbId}/${season}/${episode}`
+        : `https://embed.su/embed/movie/${tmdbId}`,
+  },
+  {
+    id: "2embed",
+    label: "2Embed",
+    build: ({ tmdbId, type, season, episode }) =>
+      type === "tv" && season && episode
+        ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
+        : `https://www.2embed.cc/embed/${tmdbId}`,
   },
   {
     id: "autoembed",
@@ -42,6 +58,14 @@ const EMBED_PROVIDERS = [
       type === "tv" && season && episode
         ? `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`
         : `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`,
+  },
+  {
+    id: "vidsrc-to",
+    label: "VidSrc.to",
+    build: ({ tmdbId, type, season, episode }) =>
+      type === "tv" && season && episode
+        ? `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`
+        : `https://vidsrc.to/embed/movie/${tmdbId}`,
   },
 ];
 

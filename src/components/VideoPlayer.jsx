@@ -52,6 +52,7 @@ export default function VideoPlayer({
   const [currentEpisode, setCurrentEpisode] = useState(episode || 1);
   const [playbackError, setPlaybackError] = useState("");
   const [isBuffering, setIsBuffering] = useState(false);
+  const [iframeLoading, setIframeLoading] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [seekValue, setSeekValue] = useState(0);
@@ -96,20 +97,31 @@ export default function VideoPlayer({
         const payload = await res.json();
         if (!res.ok) throw new Error(payload.error || "Failed to resolve player sources");
 
+        const preferred =
+          payload.preferredSourceId ||
+          payload.mediaSources?.[0]?.id ||
+          payload.embedSources?.[0]?.id ||
+          null;
+
+        const isEmbedPreferred =
+          payload.mediaSources?.length === 0 &&
+          (payload.embedSources?.length ?? 0) > 0;
+
         setResolverState({
           loading: false,
           error: "",
           mediaSources: payload.mediaSources || [],
           embedSources: payload.embedSources || [],
         });
+        setIframeLoading(isEmbedPreferred);
         setActiveSourceId((prev) => {
           const ids = new Set([
             ...(payload.mediaSources || []).map((s) => s.id),
             ...(payload.embedSources || []).map((s) => s.id),
           ]);
           if (prev && ids.has(prev)) return prev;
-          if (payload.preferredSourceId && ids.has(payload.preferredSourceId)) return payload.preferredSourceId;
-          return payload.mediaSources?.[0]?.id || payload.embedSources?.[0]?.id || null;
+          if (preferred && ids.has(preferred)) return preferred;
+          return null;
         });
       } catch (err) {
         if (controller.signal.aborted) return;
@@ -211,6 +223,7 @@ export default function VideoPlayer({
   const selectSource = useCallback((sourceId) => {
     setActiveSourceId(sourceId);
     setPlaybackError("");
+    setIframeLoading(true);
     if (type === "tv") {
       emitLobbySync("source", { source: sourceId, season: currentSeason, episode: currentEpisode });
       return;
@@ -468,19 +481,30 @@ export default function VideoPlayer({
                     </div>
                   </>
                 ) : embedSource ? (
-                  <div className="flex h-full flex-col">
+                  <div className="relative h-full w-full">
+                    {iframeLoading && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#08080d]">
+                        <div className="flex flex-col items-center gap-4 text-text-secondary">
+                          <div className="h-10 w-10 rounded-full border-2 border-accent/40 border-t-accent animate-spin" />
+                          <p className="text-[13px]">Загрузка источника…</p>
+                        </div>
+                      </div>
+                    )}
                     <iframe
                       key={`${embedSource.id}-${currentSeason}-${currentEpisode}`}
                       src={embedSource.url}
                       className="h-full w-full"
                       frameBorder="0"
-                      allow="autoplay; encrypted-media; picture-in-picture"
+                      allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; gyroscope"
                       allowFullScreen
-                      referrerPolicy="origin"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
+                      onLoad={() => setIframeLoading(false)}
+                      onError={() => {
+                        setIframeLoading(false);
+                        setPlaybackError("Этот источник не отвечает. Попробуйте другой провайдер.");
+                      }}
                     />
-                    <div className="border-t border-white/[0.06] bg-[#08080d] px-4 py-3 text-[13px] text-text-secondary">
-                      Direct HTML5 playback is unavailable for this title right now. Using an embedded fallback provider instead.
-                    </div>
                   </div>
                 ) : (
                   <div className="flex h-full items-center justify-center bg-[linear-gradient(180deg,#0d0d14,#050507)] p-6 text-center">

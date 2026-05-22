@@ -1,215 +1,475 @@
-.shell {
-  width: 100%;
+/* ══════════════════════════════════════════════
+   AUTH MODAL — KINO
+   Style: space.marsit.uz — light, clean, League Spartan
+   ══════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&display=swap');
+
+/* ── Overlay ── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
 }
 
-.modalCard {
-  position: relative;
-  display: grid;
-  width: min(1180px, 100%);
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 36px;
-  background:
-    radial-gradient(circle at top left, rgba(185, 255, 102, 0.12), transparent 32%),
-    radial-gradient(circle at bottom right, rgba(255, 181, 71, 0.12), transparent 28%),
-    linear-gradient(180deg, rgba(12, 12, 18, 0.98), rgba(7, 7, 11, 0.98));
-  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.65);
-}
-
-.modalCard::before {
-  content: "";
+.backdrop {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 72px 72px;
-  opacity: 0.2;
-  pointer-events: none;
-}
-
-.introPanel {
-  position: relative;
-  display: none;
-  gap: 32px;
-  padding: 56px;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.introGlow {
-  position: absolute;
-  inset: auto auto 44px 56px;
-  width: 220px;
-  height: 220px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(185, 255, 102, 0.2), transparent 68%);
-  filter: blur(8px);
-  pointer-events: none;
-}
-
-.featureList {
-  display: grid;
-  gap: 18px;
-  margin-top: auto;
-}
-
-.featureItem {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 14px;
-  align-items: start;
-  padding: 16px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(10, 10, 18, 0.72);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
-.featureIndex {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  color: var(--color-accent);
-}
-
-.featureTitle {
-  margin-bottom: 4px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.featureText {
-  font-size: 13px;
-  line-height: 1.65;
-  color: var(--color-text-secondary);
-}
-
-.formsGrid {
-  display: grid;
-  gap: 18px;
-  padding: 72px 20px 20px;
-}
-
-.formCard {
+/* ── Card ── */
+.card {
   position: relative;
-  display: grid;
-  align-content: start;
-  gap: 28px;
-  min-height: 100%;
-  padding: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 28px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.025));
-  backdrop-filter: blur(24px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  z-index: 1;
+  width: 100%;
+  max-width: 460px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f4;
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.04),
+    0 20px 60px rgba(0, 0, 0, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  overflow: hidden;
+  font-family: 'League Spartan', sans-serif;
 }
 
-.formCardAccent {
-  background:
-    linear-gradient(180deg, rgba(185, 255, 102, 0.08), rgba(255, 255, 255, 0.03)),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.025));
-  border-color: rgba(185, 255, 102, 0.16);
+/* ── Top stripe (cinema red) ── */
+.card::before {
+  content: '';
+  display: block;
+  height: 4px;
+  background: linear-gradient(90deg, #e8341c 0%, #ff6b47 50%, #e8341c 100%);
 }
 
-.cardTitle {
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 3vw, 2.8rem);
-  line-height: 0.95;
+/* ── Decorative film strip right edge ── */
+.filmStrip {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  background: repeating-linear-gradient(
+    180deg,
+    #f3f4f8 0px,
+    #f3f4f8 14px,
+    #e2e8f4 14px,
+    #e2e8f4 18px
+  );
+  pointer-events: none;
+}
+
+/* ── Inner padding ── */
+.inner {
+  padding: 32px 36px 28px;
+}
+
+/* ── Close ── */
+.close {
+  position: absolute;
+  top: 14px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f4;
+  background: #f8f9fc;
+  color: #9ea8b8;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  z-index: 10;
+}
+
+.close:hover {
+  background: #fee8e4;
+  border-color: #fac5bc;
+  color: #e8341c;
+}
+
+/* ── Brand ── */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.brandIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #e8341c;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(232, 52, 28, 0.3);
+}
+
+.brandName {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
   letter-spacing: -0.04em;
-  font-weight: 500;
-  color: var(--color-text-primary);
+  color: #1a1a2e;
 }
 
-.cardText {
-  max-width: 34ch;
+.brandSub {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9ea8b8;
+  margin-top: -2px;
+}
+
+/* ── Headline ── */
+.headline {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: #1a1a2e;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  font-family: 'League Spartan', sans-serif;
   font-size: 14px;
-  line-height: 1.7;
-  color: var(--color-text-secondary);
+  font-weight: 400;
+  color: #7b8599;
+  line-height: 1.55;
+  margin-bottom: 24px;
+}
+
+/* ── Tabs ── */
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #f3f5fa;
+  border: 1px solid #e2e8f4;
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 24px;
+}
+
+.tab {
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #9ea8b8;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.01em;
+}
+
+.tab:hover:not(.tabActive) {
+  color: #4b5470;
+}
+
+.tabActive {
+  background: #ffffff;
+  color: #1a1a2e;
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+/* ── Form ── */
+.form {
+  display: grid;
+  gap: 16px;
 }
 
 .field {
   display: grid;
-  gap: 10px;
+  gap: 7px;
 }
 
 .label {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-text-secondary);
+  color: #7b8599;
 }
 
+/* ── Inputs ── */
 .input {
   width: 100%;
-  height: 56px;
-  padding: 0 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  background: rgba(5, 5, 10, 0.72);
-  color: var(--color-text-primary);
+  height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid #e2e8f4;
+  border-radius: 10px;
+  background: #f8f9fc;
+  color: #1a1a2e;
+  font-family: 'League Spartan', sans-serif;
   font-size: 15px;
+  font-weight: 500;
   outline: none;
+  caret-color: #e8341c;
   transition:
-    border-color 0.25s ease,
-    box-shadow 0.25s ease,
-    background-color 0.25s ease,
-    transform 0.25s ease;
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .input::placeholder {
-  color: var(--color-text-muted);
+  color: #b8c0cc;
+  font-weight: 400;
 }
 
 .input:focus {
-  border-color: rgba(185, 255, 102, 0.5);
-  background: rgba(10, 10, 16, 0.95);
-  box-shadow:
-    0 0 0 4px rgba(185, 255, 102, 0.08),
-    0 14px 30px rgba(0, 0, 0, 0.22);
-  transform: translateY(-1px);
+  border-color: #e8341c;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(232, 52, 28, 0.1);
 }
 
+/* Autofill override */
+.input:-webkit-autofill,
+.input:-webkit-autofill:hover,
+.input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #f8f9fc inset !important;
+  -webkit-text-fill-color: #1a1a2e !important;
+  caret-color: #e8341c;
+  border-color: #e2e8f4;
+}
+
+/* Password wrap */
+.passWrap {
+  position: relative;
+}
+
+.inputPass {
+  padding-right: 48px;
+}
+
+.eye {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  color: #b8c0cc;
+  cursor: pointer;
+  transition: color 0.18s ease;
+  padding: 0;
+  border-radius: 6px;
+}
+
+.eye:hover {
+  color: #e8341c;
+}
+
+.eyeIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Error ── */
 .error {
-  padding: 12px 14px;
-  border: 1px solid rgba(251, 113, 133, 0.2);
-  border-radius: 14px;
-  background: rgba(251, 113, 133, 0.08);
+  padding: 10px 13px;
+  border: 1.5px solid #fdc8c0;
+  border-radius: 10px;
+  background: #fff5f3;
+  font-family: 'League Spartan', sans-serif;
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-error);
+  color: #e8341c;
+  line-height: 1.45;
 }
 
-.submitButton {
-  margin-top: 6px;
-  min-height: 58px;
+/* ── Submit button ── */
+.btn {
+  width: 100%;
+  height: 50px;
+  margin-top: 4px;
+  padding: 0 24px;
+  background: #e8341c;
+  color: #ffffff;
+  font-family: 'League Spartan', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 4px 14px rgba(232, 52, 28, 0.28);
+  position: relative;
+  overflow: hidden;
 }
 
-@media (min-width: 900px) {
-  .modalCard {
-    grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.25fr);
-  }
-
-  .introPanel {
-    display: grid;
-  }
-
-  .formsGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding: 72px 32px 32px;
-  }
+/* Shine sweep */
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -75%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.22), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.5s ease;
 }
 
-@media (min-width: 1200px) {
-  .formsGrid {
-    gap: 24px;
-    padding: 72px 40px 40px;
+.btn:hover:not(:disabled)::after {
+  left: 140%;
+}
+
+.btn:hover:not(:disabled) {
+  background: #d42d17;
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 8px 24px rgba(232, 52, 28, 0.4);
+}
+
+.btn:active {
+  transform: scale(0.98) translateY(0);
+  transition-duration: 0.08s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.arrow {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.btn:hover:not(:disabled) .arrow {
+  transform: translateX(4px);
+}
+
+/* ── Spinner ── */
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Divider ── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+}
+
+.dividerLine {
+  flex: 1;
+  height: 1px;
+  background: #e9ecf4;
+}
+
+.dividerText {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c0c7d4;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+/* ── Forgot ── */
+.forgot {
+  display: block;
+  text-align: center;
+  margin-top: 8px;
+  font-family: 'League Spartan', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #9ea8b8;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.forgot:hover {
+  color: #e8341c;
+}
+
+/* ── Footer ── */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 36px 20px;
+  border-top: 1px solid #f0f2f7;
+  background: #f8f9fc;
+}
+
+.footerText {
+  font-family: 'League Spartan', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #c0c7d4;
+  letter-spacing: 0.04em;
+}
+
+.footerDot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #d7dce9;
+}
+
+/* ── Responsive ── */
+@media (max-width: 520px) {
+  .inner {
+    padding: 24px 20px 20px;
   }
 
-  .formCard {
-    padding: 32px;
+  .headline {
+    font-size: 22px;
+  }
+
+  .footer {
+    padding: 14px 20px 16px;
   }
 }

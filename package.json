@@ -1,35 +1,16 @@
 {
   "name": "kino",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "cd client && npm run dev",
     "dev:server": "cd server && node --watch index.js",
     "dev:all": "npx concurrently \"npm run dev\" \"npm run dev:server\"",
-    "build": "next build",
-    "start": "next start",
-    "start:server": "cd server && node index.js",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "framer-motion": "^12.38.0",
-    "hls.js": "^1.6.16",
-    "mongoose": "^9.4.1",
-    "next": "16.2.3",
-    "next-intl": "^4.9.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "socket.io-client": "^4.8.3"
+    "build": "cd client && npm run build",
+    "server": "cd server && node index.js",
+    "install:all": "cd client && npm install && cd ../server && npm install"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "concurrently": "^9.2.1",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.3",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "concurrently": "^9.2.1"
   }
 }
