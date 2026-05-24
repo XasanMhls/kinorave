@@ -92,18 +92,12 @@ function HlsPlayer({ sources, onFallback }) {
   )
 }
 
-// ─── Hover Sync Overlay (lobby mode) ─────────────────────────────────────────
-function SyncOverlay({ syncState, isHost, onSyncAction, onNotify }) {
+// ─── Compact sync bar below video (lobby mode) ──────────────────────────────
+function SyncBar({ syncState, isHost, onSyncAction }) {
   const [currentTime, setCurrentTime] = useState(0)
-  const [visible, setVisible] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
-  const hideTimer = useRef(null)
 
   const playing = syncState?.isPlaying
-  const paused = !playing
-  const showPauseOverlay = paused && !dismissed
 
-  // Live time counter
   useEffect(() => {
     if (!syncState) return
     const update = () => {
@@ -119,143 +113,47 @@ function SyncOverlay({ syncState, isHost, onSyncAction, onNotify }) {
     return () => clearInterval(id)
   }, [syncState?.isPlaying, syncState?.playedAt, syncState?.position])
 
-  // Reset dismissed when state changes
-  useEffect(() => {
-    if (playing) setDismissed(false)
-  }, [playing])
+  const handlePlayPause = () => {
+    if (!isHost || !onSyncAction) return
+    if (playing) onSyncAction('pause', {})
+    else onSyncAction('play', { position: currentTime })
+  }
 
-  // Show controls on pause
-  useEffect(() => {
-    if (paused) { setVisible(true); clearTimeout(hideTimer.current) }
-  }, [paused])
-
-  const showControls = useCallback(() => {
-    setVisible(true)
-    clearTimeout(hideTimer.current)
-    if (!showPauseOverlay) {
-      hideTimer.current = setTimeout(() => setVisible(false), 3000)
-    }
-  }, [showPauseOverlay])
-
-  const handlePlayPause = useCallback(() => {
-    if (!isHost) {
-      // Guest: dismiss the overlay so they can watch, show a hint
-      if (showPauseOverlay) {
-        setDismissed(true)
-        hideTimer.current = setTimeout(() => setVisible(false), 3000)
-      }
-      onNotify?.('Только хост может управлять')
-      return
-    }
-    if (!onSyncAction) return
-    if (playing) {
-      onSyncAction('pause', {})
-    } else {
-      onSyncAction('play', { position: currentTime })
-    }
-  }, [isHost, onSyncAction, playing, currentTime, showPauseOverlay, onNotify])
-
-  const handleSeek = useCallback((delta) => {
-    if (!isHost) {
-      onNotify?.('Только хост может управлять')
-      return
-    }
-    if (!onSyncAction) return
+  const handleSeek = (delta) => {
+    if (!isHost || !onSyncAction) return
     onSyncAction('seek', { position: Math.max(0, currentTime + delta) })
-    showControls()
-  }, [isHost, onSyncAction, currentTime, showControls, onNotify])
+  }
 
-  const btnCls = isHost
-    ? "hover:bg-white/15 text-white/80 hover:text-white cursor-pointer active:scale-95"
-    : "hover:bg-white/10 text-white/40 hover:text-white/60 cursor-pointer active:scale-95"
+  const hostBtn = "hover:bg-white/10 text-white/70 hover:text-white cursor-pointer active:scale-95"
+  const guestBtn = "text-white/25 cursor-default"
+  const btn = `flex items-center justify-center rounded transition-all ${isHost ? hostBtn : guestBtn}`
 
   return (
-    <div
-      className="absolute inset-0 z-20"
-      onMouseMove={showControls}
-      onMouseEnter={showControls}
-      onMouseLeave={() => !showPauseOverlay && setVisible(false)}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) handlePlayPause()
-      }}
-    >
-      <AnimatePresence>
-        {(visible || showPauseOverlay) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 flex flex-col"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) handlePlayPause()
-            }}
-            style={{ background: showPauseOverlay
-              ? 'rgba(0,0,0,0.75)'
-              : 'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 25%, transparent 65%, rgba(0,0,0,0.55) 100%)'
-            }}
-          >
-            {/* Spacer — click anywhere to toggle */}
-            <div className="flex-1" onClick={handlePlayPause} />
-
-            {/* Pause label in center */}
-            {showPauseOverlay && (
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                <p className="text-white/60 text-sm sm:text-base font-medium">
-                  {isHost ? 'Нажмите ▶ для продолжения' : 'Хост поставил на паузу'}
-                </p>
-                <p className="text-white/30 text-xs mt-1">
-                  {isHost ? '' : 'Нажмите, чтобы скрыть'}
-                </p>
-              </div>
-            )}
-
-            {/* Bottom controls bar */}
-            <div
-              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Play / Pause button */}
-              <button
-                onClick={handlePlayPause}
-                className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-md transition-all ${btnCls}`}
-                title={playing ? 'Пауза' : 'Играть'}
-              >
-                {playing ? (
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
-                ) : (
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                )}
-              </button>
-
-              <div className="w-px h-4 bg-white/10 mx-0.5" />
-
-              {/* Seek buttons */}
-              <button onClick={() => handleSeek(-60)} className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md text-[10px] sm:text-xs font-bold transition-all ${btnCls}`} title="-1 мин">
-                -1м
-              </button>
-              <button onClick={() => handleSeek(-15)} className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md text-[10px] sm:text-xs font-bold transition-all ${btnCls}`} title="-15с">
-                -15
-              </button>
-              <button onClick={() => handleSeek(15)} className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md text-[10px] sm:text-xs font-bold transition-all ${btnCls}`} title="+15с">
-                +15
-              </button>
-              <button onClick={() => handleSeek(60)} className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md text-[10px] sm:text-xs font-bold transition-all ${btnCls}`} title="+1 мин">
-                +1м
-              </button>
-              <button onClick={() => handleSeek(300)} className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md text-[10px] sm:text-xs font-bold transition-all ${btnCls}`} title="+5 мин">
-                +5м
-              </button>
-
-              <div className="flex-1" />
-
-              {/* Status + time */}
-              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${playing ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`} />
-              <span className="text-white/80 text-xs sm:text-sm font-mono tabular-nums ml-1.5">{fmtTime(currentTime)}</span>
-            </div>
-          </motion.div>
+    <div className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-3 h-9 sm:h-10 bg-[#0c0c16] border-t border-white/5 rounded-b-xl">
+      {/* Play / Pause */}
+      <button onClick={handlePlayPause} className={`${btn} w-7 h-7 sm:w-8 sm:h-8`} title={playing ? 'Пауза' : 'Play'}>
+        {playing ? (
+          <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+        ) : (
+          <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
         )}
-      </AnimatePresence>
+      </button>
+
+      <div className="w-px h-4 bg-white/8" />
+
+      {/* Seek */}
+      <button onClick={() => handleSeek(-60)}  className={`${btn} w-7 h-6 sm:w-8 sm:h-7 text-[9px] sm:text-[10px] font-bold`}>-1м</button>
+      <button onClick={() => handleSeek(-15)}  className={`${btn} w-6 h-6 sm:w-7 sm:h-7 text-[9px] sm:text-[10px] font-bold`}>-15</button>
+      <button onClick={() => handleSeek(15)}   className={`${btn} w-6 h-6 sm:w-7 sm:h-7 text-[9px] sm:text-[10px] font-bold`}>+15</button>
+      <button onClick={() => handleSeek(60)}   className={`${btn} w-7 h-6 sm:w-8 sm:h-7 text-[9px] sm:text-[10px] font-bold`}>+1м</button>
+      <button onClick={() => handleSeek(300)}  className={`${btn} w-7 h-6 sm:w-8 sm:h-7 text-[9px] sm:text-[10px] font-bold`}>+5м</button>
+
+      <div className="flex-1" />
+
+      {/* Status */}
+      <div className={`w-1.5 h-1.5 rounded-full ${playing ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`} />
+      <span className="text-white/60 text-[10px] sm:text-xs font-mono tabular-nums ml-1">{fmtTime(currentTime)}</span>
+      {!isHost && <span className="text-white/20 text-[9px] ml-1 hidden sm:inline">хост управляет</span>}
     </div>
   )
 }
@@ -365,8 +263,12 @@ export function VideoPlayer({
 
     if (prev.source !== syncState.source)
       notify(`Источник: ${EMBEDS.find(e => e.key === syncState.source)?.label ?? syncState.source}`)
+    else if (prev.isPlaying && !syncState.isPlaying)
+      notify('Пауза')
+    else if (!prev.isPlaying && syncState.isPlaying)
+      notify('Воспроизведение')
     else if (Math.abs((prev.position || 0) - (syncState.position || 0)) > 5)
-      notify(`Перемотка на ${fmtTime(syncState.position)} — перемотайте вручную`, 6000)
+      notify(`Перемотка → ${fmtTime(syncState.position)}`, 5000)
 
     prevSync.current = { ...syncState }
   }, [syncState, inLobby, notify])
@@ -385,7 +287,7 @@ export function VideoPlayer({
     <div className="w-full">
       {/* ── Video frame ── */}
       <div
-        className="relative w-full bg-black overflow-hidden rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.8)]"
+        className={`relative w-full bg-black overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.8)] ${inLobby ? 'rounded-t-xl' : 'rounded-2xl'}`}
         style={{ aspectRatio: '16/9' }}
       >
         {mode === 'hls' && (
@@ -404,19 +306,9 @@ export function VideoPlayer({
           />
         )}
 
-        {/* Hover sync overlay — lobby mode only */}
+        {/* Lobby badge — pointer-events-none so it never blocks the iframe */}
         {inLobby && (
-          <SyncOverlay
-            syncState={syncState}
-            isHost={isHost}
-            onSyncAction={onSyncAction}
-            onNotify={notify}
-          />
-        )}
-
-        {/* Lobby badge */}
-        {inLobby && (
-          <div className="absolute top-2 left-2 z-30 pointer-events-none">
+          <div className="absolute top-2 left-2 z-10 pointer-events-none">
             <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold backdrop-blur-md border ${
               isHost ? 'bg-violet-600/80 border-violet-500/50 text-white' : 'bg-black/60 border-white/10 text-white/50'
             }`}>
@@ -426,20 +318,20 @@ export function VideoPlayer({
           </div>
         )}
 
-        {/* Toast */}
+        {/* Toast — pointer-events-none */}
         <AnimatePresence>
           {notification && (
             <motion.div
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="absolute top-2 left-1/2 -translate-x-1/2 z-40 pointer-events-none px-3 py-1.5 rounded-lg bg-black/80 backdrop-blur-md border border-white/10 text-white text-[11px] font-medium whitespace-nowrap"
+              className="absolute top-2 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-3 py-1.5 rounded-lg bg-black/80 backdrop-blur-md border border-white/10 text-white text-[11px] font-medium whitespace-nowrap"
             >
               {notification}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* HD + source picker */}
-        <div className="absolute top-2 right-2 z-30 flex flex-col items-end gap-1">
+        {/* HD + source picker — these buttons sit on top but are small */}
+        <div className="absolute top-2 right-2 z-10 flex flex-col items-end gap-1">
           {mode === 'iframe' && hdAvailable && (
             <button onClick={() => setMode('hls')}
               className="flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-600/80 backdrop-blur-md border border-violet-400/30 text-[10px] font-bold text-white hover:bg-violet-600 transition-colors">
@@ -471,7 +363,7 @@ export function VideoPlayer({
                 <AnimatePresence>
                   {showMenu && canControl && (
                     <motion.div initial={{ opacity: 0, y: 6, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.95 }} transition={{ duration: 0.12 }}
-                      className="absolute right-0 top-full mt-1 w-36 bg-[#12121a]/96 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden shadow-2xl">
+                      className="absolute right-0 top-full mt-1 w-36 bg-[#12121a]/96 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden shadow-2xl z-50">
                       {EMBEDS.map((e, i) => (
                         <button key={e.key} onClick={() => switchEmbed(i)}
                           className={`w-full flex items-center gap-2 px-2.5 py-2 text-xs transition-colors ${i === activeEmbedIdx ? 'text-white bg-violet-600/30 font-semibold' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
@@ -497,6 +389,11 @@ export function VideoPlayer({
           )}
         </div>
       </div>
+
+      {/* ── Sync bar below video (lobby only) ── */}
+      {inLobby && (
+        <SyncBar syncState={syncState} isHost={isHost} onSyncAction={onSyncAction} />
+      )}
 
       {/* ── Fallback: open in new tab ── */}
       {!inLobby && (
