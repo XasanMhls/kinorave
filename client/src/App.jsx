@@ -15,6 +15,7 @@ const SeriesPage  = lazy(() => import('./pages/CatalogPage').then(m => ({ defaul
 const CartoonsPage= lazy(() => import('./pages/CatalogPage').then(m => ({ default: m.CartoonsPage })))
 const AnimePage   = lazy(() => import('./pages/CatalogPage').then(m => ({ default: m.AnimePage })))
 const GenrePage   = lazy(() => import('./pages/GenrePage').then(m => ({ default: m.GenrePage })))
+const WatchPartyPage = lazy(() => import('./pages/WatchPartyPage').then(m => ({ default: m.WatchPartyPage })))
 
 function Spinner() {
   return (
@@ -64,6 +65,7 @@ export default function App() {
                 <Route path="/tv/:id"     element={<TvShowPage onAuthOpen={openAuth} />} />
                 <Route path="/search"     element={<SearchPage />} />
                 <Route path="/genre/:id"  element={<GenrePage />} />
+                <Route path="/watch-party" element={<WatchPartyPage onAuthOpen={openAuth} />} />
                 <Route path="*"           element={<Navigate to="/" replace />} />
               </Routes>
             </MainLayout>

@@ -216,6 +216,26 @@ export function Navbar({ onAuthOpen }) {
           {CATEGORIES.map(cat => (
             <NavDropdown key={cat.to} cat={cat} isActive={isCatActive(cat)} />
           ))}
+
+          {/* Watch Party */}
+          <Link
+            to="/watch-party"
+            className={`relative flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-xl transition-colors duration-150 ${
+              location.pathname === '/watch-party' ? 'text-white' : 'text-white/45 hover:text-white/80'
+            }`}
+          >
+            {location.pathname === '/watch-party' && (
+              <motion.span
+                layoutId="nav-pill"
+                className="absolute inset-0 rounded-xl bg-white/8"
+                transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+              />
+            )}
+            <svg className="relative w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="relative">Watch Party</span>
+          </Link>
         </nav>
 
         {/* Search */}
@@ -337,6 +357,19 @@ export function Navbar({ onAuthOpen }) {
                 }`}
               >
                 Главная
+              </Link>
+
+              {/* Watch Party */}
+              <Link
+                to="/watch-party"
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  location.pathname === '/watch-party' ? 'text-white bg-white/8' : 'text-white/50 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Watch Party
               </Link>
 
               {/* Categories with accordion */}
