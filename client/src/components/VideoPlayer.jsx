@@ -92,10 +92,16 @@ function HlsPlayer({ sources, onFallback }) {
   )
 }
 
-// ─── Sync Control Bar (lobby mode) ────────────────────────────────────────────
-function SyncBar({ syncState, isHost, onSyncAction }) {
+// ─── Hover Sync Overlay (lobby mode) ─────────────────────────────────────────
+function SyncOverlay({ syncState, isHost, onSyncAction }) {
   const [currentTime, setCurrentTime] = useState(0)
+  const [visible, setVisible] = useState(false)
+  const hideTimer = useRef(null)
 
+  const playing = syncState?.isPlaying
+  const paused = !playing
+
+  // Live time counter
   useEffect(() => {
     if (!syncState) return
     const update = () => {
@@ -111,64 +117,120 @@ function SyncBar({ syncState, isHost, onSyncAction }) {
     return () => clearInterval(id)
   }, [syncState?.isPlaying, syncState?.playedAt, syncState?.position])
 
-  const playing = syncState?.isPlaying
+  // Always visible when paused
+  useEffect(() => {
+    if (paused) { setVisible(true); clearTimeout(hideTimer.current) }
+  }, [paused])
 
-  const handlePlayPause = () => {
+  const showControls = useCallback(() => {
+    setVisible(true)
+    clearTimeout(hideTimer.current)
+    if (playing) {
+      hideTimer.current = setTimeout(() => setVisible(false), 3000)
+    }
+  }, [playing])
+
+  const handlePlayPause = useCallback(() => {
     if (!isHost || !onSyncAction) return
     if (playing) {
       onSyncAction('pause', {})
     } else {
       onSyncAction('play', { position: currentTime })
     }
-  }
+  }, [isHost, onSyncAction, playing, currentTime])
 
-  const handleSeek = (delta) => {
+  const handleSeek = useCallback((delta) => {
     if (!isHost || !onSyncAction) return
     onSyncAction('seek', { position: Math.max(0, currentTime + delta) })
-  }
+    showControls()
+  }, [isHost, onSyncAction, currentTime, showControls])
 
-  const btnBase = "flex items-center justify-center rounded-lg transition-colors"
-  const hostBtn = `${btnBase} hover:bg-white/10 text-white/70 hover:text-white cursor-pointer`
-  const guestBtn = `${btnBase} text-white/20 cursor-default`
-  const btn = isHost ? hostBtn : guestBtn
+  const btnCls = isHost
+    ? "hover:bg-white/15 text-white/80 hover:text-white cursor-pointer active:scale-95"
+    : "text-white/30 cursor-default"
 
   return (
-    <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 bg-[#0a0a14] border-t border-white/6 rounded-b-2xl">
-      {/* Play / Pause */}
-      <button onClick={handlePlayPause} className={`${btn} w-9 h-9 sm:w-10 sm:h-10`} title={playing ? 'Пауза' : 'Играть'}>
-        {playing ? (
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
-        ) : (
-          <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    <div
+      className="absolute inset-0 z-20"
+      onMouseMove={showControls}
+      onMouseEnter={showControls}
+      onMouseLeave={() => playing && setVisible(false)}
+      onClick={(e) => {
+        // Only toggle on click on the backdrop area, not on buttons
+        if (e.target === e.currentTarget) handlePlayPause()
+      }}
+    >
+      <AnimatePresence>
+        {(visible || paused) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 flex flex-col"
+            style={{ background: paused
+              ? 'rgba(0,0,0,0.82)'
+              : 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.6) 100%)'
+            }}
+          >
+            {/* Center play/pause button */}
+            <div className="flex-1 flex items-center justify-center">
+              <button
+                onClick={handlePlayPause}
+                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all ${
+                  isHost
+                    ? 'bg-white/15 hover:bg-white/25 text-white hover:scale-110 active:scale-95 cursor-pointer'
+                    : 'bg-white/5 text-white/30 cursor-default'
+                }`}
+              >
+                {playing ? (
+                  <svg className="w-7 h-7 sm:w-8 sm:h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+                ) : (
+                  <svg className="w-7 h-7 sm:w-8 sm:h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                )}
+              </button>
+            </div>
+
+            {/* Pause label */}
+            {paused && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-8 sm:translate-y-10 text-center pointer-events-none">
+                <p className="text-white/50 text-xs sm:text-sm">
+                  {isHost ? 'Нажмите для продолжения' : 'Хост поставил на паузу'}
+                </p>
+              </div>
+            )}
+
+            {/* Bottom controls bar */}
+            <div
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Seek buttons */}
+              <button onClick={() => handleSeek(-60)} className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md text-[10px] sm:text-xs font-bold transition-all ${btnCls}`} title="-1 мин">
+                -1м
+              </button>
+              <button onClick={() => handleSeek(-15)} className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md text-[10px] sm:text-xs font-bold transition-all ${btnCls}`} title="-15с">
+                -15
+              </button>
+              <button onClick={() => handleSeek(15)} className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md text-[10px] sm:text-xs font-bold transition-all ${btnCls}`} title="+15с">
+                +15
+              </button>
+              <button onClick={() => handleSeek(60)} className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md text-[10px] sm:text-xs font-bold transition-all ${btnCls}`} title="+1 мин">
+                +1м
+              </button>
+              <button onClick={() => handleSeek(300)} className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md text-[10px] sm:text-xs font-bold transition-all ${btnCls}`} title="+5 мин">
+                +5м
+              </button>
+
+              <div className="flex-1" />
+
+              {/* Status + time */}
+              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${playing ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`} />
+              <span className="text-white/80 text-xs sm:text-sm font-mono tabular-nums ml-1.5">{fmtTime(currentTime)}</span>
+            </div>
+          </motion.div>
         )}
-      </button>
-
-      {/* Seek buttons */}
-      <button onClick={() => handleSeek(-60)} className={`${btn} w-8 h-8 sm:w-9 sm:h-9 text-xs font-bold`} title="-1 мин">
-        <span className="hidden sm:inline">-1м</span>
-        <svg className="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"/></svg>
-      </button>
-      <button onClick={() => handleSeek(-15)} className={`${btn} w-8 h-8 sm:w-9 sm:h-9 text-xs font-bold`} title="-15 сек">
-        -15
-      </button>
-      <button onClick={() => handleSeek(15)} className={`${btn} w-8 h-8 sm:w-9 sm:h-9 text-xs font-bold`} title="+15 сек">
-        +15
-      </button>
-      <button onClick={() => handleSeek(60)} className={`${btn} w-8 h-8 sm:w-9 sm:h-9 text-xs font-bold`} title="+1 мин">
-        <span className="hidden sm:inline">+1м</span>
-        <svg className="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z"/></svg>
-      </button>
-      <button onClick={() => handleSeek(300)} className={`${btn} w-8 h-8 sm:w-9 sm:h-9 text-xs font-bold hidden sm:flex`} title="+5 мин">
-        +5м
-      </button>
-
-      {/* Time display */}
-      <div className="flex-1" />
-      <div className="flex items-center gap-2">
-        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${playing ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`} />
-        <span className="text-white/80 text-sm sm:text-base font-mono tabular-nums">{fmtTime(currentTime)}</span>
-        <span className="text-white/30 text-xs hidden sm:inline">{playing ? 'играет' : 'пауза'}</span>
-      </div>
+      </AnimatePresence>
     </div>
   )
 }
@@ -278,10 +340,6 @@ export function VideoPlayer({
 
     if (prev.source !== syncState.source)
       notify(`Источник: ${EMBEDS.find(e => e.key === syncState.source)?.label ?? syncState.source}`)
-    else if (prev.isPlaying && !syncState.isPlaying)
-      notify('Пауза')
-    else if (!prev.isPlaying && syncState.isPlaying)
-      notify('Воспроизведение')
     else if (Math.abs((prev.position || 0) - (syncState.position || 0)) > 5)
       notify(`Перемотка на ${fmtTime(syncState.position)} — перемотайте вручную`, 6000)
 
@@ -302,7 +360,7 @@ export function VideoPlayer({
     <div className="w-full">
       {/* ── Video frame ── */}
       <div
-        className={`relative w-full bg-black overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.8)] ${inLobby ? 'rounded-t-2xl' : 'rounded-2xl'}`}
+        className="relative w-full bg-black overflow-hidden rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.8)]"
         style={{ aspectRatio: '16/9' }}
       >
         {mode === 'hls' && (
@@ -321,48 +379,33 @@ export function VideoPlayer({
           />
         )}
 
+        {/* Hover sync overlay — lobby mode only */}
+        {inLobby && (
+          <SyncOverlay
+            syncState={syncState}
+            isHost={isHost}
+            onSyncAction={onSyncAction}
+          />
+        )}
+
         {/* Lobby badge */}
         {inLobby && (
-          <div className="absolute top-3 left-3 z-10 pointer-events-none">
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold backdrop-blur-md border ${
+          <div className="absolute top-2 left-2 z-30 pointer-events-none">
+            <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold backdrop-blur-md border ${
               isHost ? 'bg-violet-600/80 border-violet-500/50 text-white' : 'bg-black/60 border-white/10 text-white/50'
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isHost ? 'bg-white animate-pulse' : 'bg-white/40'}`} />
-              {isHost ? 'Вы — хост' : 'Хост управляет'}
+              <span className={`w-1 h-1 rounded-full ${isHost ? 'bg-white animate-pulse' : 'bg-white/40'}`} />
+              {isHost ? 'Хост' : 'Гость'}
             </div>
           </div>
         )}
-
-        {/* Pause overlay — blocks video when host pauses (iframe can't be paused directly) */}
-        <AnimatePresence>
-          {inLobby && syncState && !syncState.isPlaying && mode === 'iframe' && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute inset-0 z-30 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center gap-4 pointer-events-none"
-            >
-              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
-                <svg className="w-8 h-8 text-white/80" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-                </svg>
-              </div>
-              <p className="text-white text-lg font-semibold">Пауза</p>
-              <p className="text-white/50 text-sm">
-                {isHost ? 'Нажмите play для продолжения' : 'Хост поставил на паузу'}
-              </p>
-              <p className="text-white/40 text-xs font-mono">{fmtTime(syncState.position || 0)}</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Toast */}
         <AnimatePresence>
           {notification && (
             <motion.div
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="absolute top-3 left-1/2 -translate-x-1/2 z-40 pointer-events-none px-4 py-2 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 text-white text-xs font-medium whitespace-nowrap"
+              className="absolute top-2 left-1/2 -translate-x-1/2 z-40 pointer-events-none px-3 py-1.5 rounded-lg bg-black/80 backdrop-blur-md border border-white/10 text-white text-[11px] font-medium whitespace-nowrap"
             >
               {notification}
             </motion.div>
@@ -370,17 +413,17 @@ export function VideoPlayer({
         </AnimatePresence>
 
         {/* HD + source picker */}
-        <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
+        <div className="absolute top-2 right-2 z-30 flex flex-col items-end gap-1">
           {mode === 'iframe' && hdAvailable && (
             <button onClick={() => setMode('hls')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600/80 backdrop-blur-md border border-violet-400/30 text-xs font-bold text-white hover:bg-violet-600 transition-colors">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />HD
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-600/80 backdrop-blur-md border border-violet-400/30 text-[10px] font-bold text-white hover:bg-violet-600 transition-colors">
+              <span className="w-1 h-1 rounded-full bg-green-400 animate-pulse" />HD
             </button>
           )}
 
           {mode === 'hls' && (
             <button onClick={() => setMode('iframe')}
-              className="px-3 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-xs text-white/60 hover:text-white transition-colors">
+              className="px-2 py-1 rounded-lg bg-black/70 backdrop-blur-md border border-white/10 text-[10px] text-white/60 hover:text-white transition-colors">
               Зеркала
             </button>
           )}
@@ -389,24 +432,24 @@ export function VideoPlayer({
             <>
               <div className="relative">
                 <button onClick={() => canControl && setShowMenu(v => !v)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl backdrop-blur-md border text-xs font-semibold transition-colors ${
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg backdrop-blur-md border text-[10px] font-semibold transition-colors ${
                     canControl ? 'bg-black/70 border-white/10 text-white hover:bg-black/90' : 'bg-black/40 border-white/5 text-white/30 cursor-default'
                   }`}>
-                  <svg className="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-2.5 h-2.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.362a1 1 0 01-1.447.894L15 14M3 8a1 1 0 011-1h9a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V8z" />
                   </svg>
                   {activeEmbed.label}
-                  {canControl && <svg className={`w-3 h-3 opacity-60 transition-transform ${showMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>}
+                  {canControl && <svg className={`w-2.5 h-2.5 opacity-60 transition-transform ${showMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>}
                 </button>
 
                 <AnimatePresence>
                   {showMenu && canControl && (
                     <motion.div initial={{ opacity: 0, y: 6, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.95 }} transition={{ duration: 0.12 }}
-                      className="absolute right-0 top-full mt-2 w-44 bg-[#12121a]/96 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+                      className="absolute right-0 top-full mt-1 w-36 bg-[#12121a]/96 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden shadow-2xl">
                       {EMBEDS.map((e, i) => (
                         <button key={e.key} onClick={() => switchEmbed(i)}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors ${i === activeEmbedIdx ? 'text-white bg-violet-600/30 font-semibold' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
-                          <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${i === activeEmbedIdx ? 'bg-violet-400' : 'bg-white/20'}`} />
+                          className={`w-full flex items-center gap-2 px-2.5 py-2 text-xs transition-colors ${i === activeEmbedIdx ? 'text-white bg-violet-600/30 font-semibold' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
+                          <div className={`w-1 h-1 rounded-full flex-shrink-0 ${i === activeEmbedIdx ? 'bg-violet-400' : 'bg-white/20'}`} />
                           {e.label}
                         </button>
                       ))}
@@ -417,8 +460,8 @@ export function VideoPlayer({
 
               {canControl && (
                 <button onClick={goNext}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-xs text-white/60 hover:text-white transition-colors">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-black/70 backdrop-blur-md border border-white/10 text-[10px] text-white/60 hover:text-white transition-colors">
+                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                   Другой
@@ -428,11 +471,6 @@ export function VideoPlayer({
           )}
         </div>
       </div>
-
-      {/* ── Sync control bar (lobby only) ── */}
-      {inLobby && (
-        <SyncBar syncState={syncState} isHost={isHost} onSyncAction={onSyncAction} />
-      )}
 
       {/* ── Fallback: open in new tab ── */}
       {!inLobby && (
