@@ -209,10 +209,10 @@ export function VideoPlayer({
     ? activeEmbed.tv(movieId, activeSeason, activeEpisode)
     : activeEmbed.movie(movieId)
 
-  const notify = useCallback((text) => {
+  const notify = useCallback((text, duration = 4000) => {
     setNotification(text)
     clearTimeout(notifTimer.current)
-    notifTimer.current = setTimeout(() => setNotification(null), 3500)
+    notifTimer.current = setTimeout(() => setNotification(null), duration)
   }, [])
 
   // ── Try to get direct stream ───────────────────────────────────────────────
@@ -279,11 +279,11 @@ export function VideoPlayer({
     if (prev.source !== syncState.source)
       notify(`Источник: ${EMBEDS.find(e => e.key === syncState.source)?.label ?? syncState.source}`)
     else if (prev.isPlaying && !syncState.isPlaying)
-      notify('Хост поставил на паузу')
+      notify('Пауза')
     else if (!prev.isPlaying && syncState.isPlaying)
-      notify('Хост запустил воспроизведение')
+      notify('Воспроизведение')
     else if (Math.abs((prev.position || 0) - (syncState.position || 0)) > 5)
-      notify(`Хост перемотал на ${fmtTime(syncState.position)}`)
+      notify(`Перемотка на ${fmtTime(syncState.position)} — перемотайте вручную`, 6000)
 
     prevSync.current = { ...syncState }
   }, [syncState, inLobby, notify])
@@ -333,12 +333,36 @@ export function VideoPlayer({
           </div>
         )}
 
+        {/* Pause overlay — blocks video when host pauses (iframe can't be paused directly) */}
+        <AnimatePresence>
+          {inLobby && syncState && !syncState.isPlaying && mode === 'iframe' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 z-30 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center gap-4 pointer-events-none"
+            >
+              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
+                <svg className="w-8 h-8 text-white/80" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                </svg>
+              </div>
+              <p className="text-white text-lg font-semibold">Пауза</p>
+              <p className="text-white/50 text-sm">
+                {isHost ? 'Нажмите play для продолжения' : 'Хост поставил на паузу'}
+              </p>
+              <p className="text-white/40 text-xs font-mono">{fmtTime(syncState.position || 0)}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Toast */}
         <AnimatePresence>
           {notification && (
             <motion.div
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none px-4 py-2 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 text-white text-xs font-medium whitespace-nowrap"
+              className="absolute top-3 left-1/2 -translate-x-1/2 z-40 pointer-events-none px-4 py-2 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 text-white text-xs font-medium whitespace-nowrap"
             >
               {notification}
             </motion.div>
