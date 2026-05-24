@@ -1,25 +1,151 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
 import { Avatar } from './ui/Avatar'
 
-const NAV = [
-  { to: '/',         label: 'Главная'    },
-  { to: '/movies',   label: 'Фильмы'    },
-  { to: '/series',   label: 'Сериалы'   },
-  { to: '/cartoons', label: 'Мультфильмы' },
-  { to: '/anime',    label: 'Аниме'     },
+// ── Category dropdowns ─────────────────────────────────────────────────────────
+const CATEGORIES = [
+  {
+    label: 'Фильмы',
+    to: '/movies',
+    items: [
+      { label: 'Все фильмы',    to: '/movies' },
+      null,
+      { label: '🎬 Боевики',    to: '/genre/28?type=movie' },
+      { label: '😂 Комедии',    to: '/genre/35?type=movie' },
+      { label: '🎭 Драмы',      to: '/genre/18?type=movie' },
+      { label: '👻 Ужасы',      to: '/genre/27?type=movie' },
+      { label: '🚀 Фантастика', to: '/genre/878?type=movie' },
+      { label: '🔍 Триллеры',   to: '/genre/53?type=movie' },
+      { label: '🧙 Фэнтези',    to: '/genre/14?type=movie' },
+      { label: '💘 Мелодрамы',  to: '/genre/10749?type=movie' },
+      { label: '🌊 Приключения',to: '/genre/12?type=movie' },
+      { label: '🕵️ Криминал',   to: '/genre/80?type=movie' },
+      { label: '⚔️ Исторические',to: '/genre/36?type=movie' },
+      { label: '🌍 Документальные', to: '/genre/99?type=movie' },
+    ],
+  },
+  {
+    label: 'Сериалы',
+    to: '/series',
+    items: [
+      { label: 'Все сериалы',   to: '/series' },
+      null,
+      { label: '🎬 Боевики',    to: '/genre/28?type=tv' },
+      { label: '😂 Комедии',    to: '/genre/35?type=tv' },
+      { label: '🎭 Драмы',      to: '/genre/18?type=tv' },
+      { label: '👻 Ужасы',      to: '/genre/27?type=tv' },
+      { label: '🚀 Фантастика', to: '/genre/878?type=tv' },
+      { label: '🔍 Триллеры',   to: '/genre/53?type=tv' },
+      { label: '💘 Мелодрамы',  to: '/genre/10749?type=tv' },
+      { label: '🧩 Мистика',    to: '/genre/9648?type=tv' },
+      { label: '🕵️ Криминал',   to: '/genre/80?type=tv' },
+    ],
+  },
+  {
+    label: 'Мультфильмы',
+    to: '/cartoons',
+    items: [
+      { label: 'Все мультфильмы', to: '/cartoons' },
+      null,
+      { label: '🎪 Анимация (фильмы)',  to: '/genre/16?type=movie' },
+      { label: '📺 Мультсериалы',       to: '/genre/16?type=tv' },
+      { label: '👨‍👩‍👧 Семейные',           to: '/genre/10751?type=movie' },
+      { label: '✨ Для детей',           to: '/genre/10751?type=tv' },
+    ],
+  },
+  {
+    label: 'Аниме',
+    to: '/anime',
+    items: [
+      { label: 'Всё аниме',         to: '/anime' },
+      null,
+      { label: '⚡ Аниме-сериалы',  to: '/genre/16?type=tv' },
+      { label: '🎌 Аниме-фильмы',   to: '/genre/16?type=movie' },
+    ],
+  },
 ]
+
+function NavDropdown({ cat, isActive }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const location = useLocation()
+
+  // Close on outside click
+  useEffect(() => {
+    const fn = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [])
+
+  // Close on route change
+  useEffect(() => { setOpen(false) }, [location.pathname])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`relative flex items-center gap-1 px-3.5 py-2 text-sm font-medium rounded-xl transition-colors duration-150 ${
+          isActive ? 'text-white' : 'text-white/45 hover:text-white/80'
+        }`}
+      >
+        {isActive && (
+          <motion.span
+            layoutId="nav-pill"
+            className="absolute inset-0 rounded-xl bg-white/8"
+            transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+          />
+        )}
+        <span className="relative">{cat.label}</span>
+        <svg
+          className={`relative w-3 h-3 opacity-50 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.96 }}
+            transition={{ duration: 0.13 }}
+            className="absolute left-0 top-full mt-2 w-52 bg-[#0f0f1a]/97 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.7)] overflow-hidden z-50"
+          >
+            <div className="p-1.5">
+              {cat.items.map((item, i) =>
+                item === null ? (
+                  <div key={i} className="h-px bg-white/6 my-1" />
+                ) : (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl text-white/60 hover:text-white hover:bg-white/6 transition-colors"
+                  >
+                    {item.label}
+                  </Link>
+                )
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
 
 export function Navbar({ onAuthOpen }) {
   const { user, logout } = useAuthStore()
   const navigate  = useNavigate()
   const location  = useLocation()
-  const [scrolled,    setScrolled]    = useState(false)
-  const [search,      setSearch]      = useState('')
-  const [mobileOpen,  setMobileOpen]  = useState(false)
-  const [userMenuOpen,setUserMenuOpen]= useState(false)
+  const [scrolled,     setScrolled]     = useState(false)
+  const [search,       setSearch]       = useState('')
+  const [mobileOpen,   setMobileOpen]   = useState(false)
+  const [mobileExpanded, setMobileExpanded] = useState(null) // which category is expanded in mobile
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 16)
@@ -27,7 +153,11 @@ export function Navbar({ onAuthOpen }) {
     return () => window.removeEventListener('scroll', fn)
   }, [])
 
-  useEffect(() => { setMobileOpen(false); setUserMenuOpen(false) }, [location.pathname])
+  useEffect(() => {
+    setMobileOpen(false)
+    setUserMenuOpen(false)
+    setMobileExpanded(null)
+  }, [location.pathname])
 
   const handleSearch = e => {
     e.preventDefault()
@@ -35,7 +165,9 @@ export function Navbar({ onAuthOpen }) {
     if (q) { navigate(`/search?q=${encodeURIComponent(q)}`); setSearch('') }
   }
 
-  const isActive = to => to === '/' ? location.pathname === '/' : location.pathname.startsWith(to)
+  const isCatActive = cat =>
+    location.pathname === cat.to ||
+    (cat.to !== '/' && location.pathname.startsWith(cat.to))
 
   return (
     <motion.header
@@ -44,11 +176,11 @@ export function Navbar({ onAuthOpen }) {
       transition={{ type: 'spring', damping: 28, stiffness: 260 }}
       className={`fixed top-0 inset-x-0 z-40 transition-all duration-300 ${
         scrolled
-          ? 'bg-[#07070d]/85 backdrop-blur-2xl border-b border-white/6 shadow-[0_1px_24px_rgba(0,0,0,0.5)]'
+          ? 'bg-[#07070d]/88 backdrop-blur-2xl border-b border-white/6 shadow-[0_1px_24px_rgba(0,0,0,0.5)]'
           : 'bg-transparent'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
 
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 flex-shrink-0 group">
@@ -62,27 +194,27 @@ export function Navbar({ onAuthOpen }) {
           </span>
         </Link>
 
-        {/* Desktop nav */}
+        {/* Desktop nav — Главная + dropdowns */}
         <nav className="hidden lg:flex items-center gap-0.5">
-          {NAV.map(({ to, label }) => (
-            <Link
-              key={to}
-              to={to}
-              className={`relative px-3.5 py-2 text-sm font-medium rounded-xl transition-colors duration-150 ${
-                isActive(to)
-                  ? 'text-white'
-                  : 'text-white/45 hover:text-white/80'
-              }`}
-            >
-              {isActive(to) && (
-                <motion.span
-                  layoutId="nav-pill"
-                  className="absolute inset-0 rounded-xl bg-white/8"
-                  transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-                />
-              )}
-              <span className="relative">{label}</span>
-            </Link>
+          {/* Главная */}
+          <Link
+            to="/"
+            className={`relative px-3.5 py-2 text-sm font-medium rounded-xl transition-colors duration-150 ${
+              location.pathname === '/' ? 'text-white' : 'text-white/45 hover:text-white/80'
+            }`}
+          >
+            {location.pathname === '/' && (
+              <motion.span
+                layoutId="nav-pill"
+                className="absolute inset-0 rounded-xl bg-white/8"
+                transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+              />
+            )}
+            <span className="relative">Главная</span>
+          </Link>
+
+          {CATEGORIES.map(cat => (
+            <NavDropdown key={cat.to} cat={cat} isActive={isCatActive(cat)} />
           ))}
         </nav>
 
@@ -155,7 +287,7 @@ export function Navbar({ onAuthOpen }) {
             </motion.button>
           )}
 
-          {/* Mobile menu button */}
+          {/* Mobile burger */}
           <button
             onClick={() => setMobileOpen(v => !v)}
             className="lg:hidden p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/6 transition-colors"
@@ -184,7 +316,7 @@ export function Navbar({ onAuthOpen }) {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="lg:hidden overflow-hidden border-t border-white/6 bg-[#07070d]/95 backdrop-blur-2xl"
+            className="lg:hidden overflow-hidden border-t border-white/6 bg-[#07070d]/97 backdrop-blur-2xl"
           >
             <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-1">
               {/* Mobile search */}
@@ -196,18 +328,63 @@ export function Navbar({ onAuthOpen }) {
                   className="w-full px-4 py-2.5 text-sm rounded-xl bg-[#161625] border border-white/10 text-white placeholder:text-white/30 outline-none focus:border-violet-500/60 transition-all caret-violet-400"
                 />
               </form>
-              {NAV.map(({ to, label }) => (
-                <Link
-                  key={to}
-                  to={to}
-                  className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isActive(to)
-                      ? 'text-white bg-white/8'
-                      : 'text-white/50 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {label}
-                </Link>
+
+              {/* Главная */}
+              <Link
+                to="/"
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  location.pathname === '/' ? 'text-white bg-white/8' : 'text-white/50 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                Главная
+              </Link>
+
+              {/* Categories with accordion */}
+              {CATEGORIES.map(cat => (
+                <div key={cat.to}>
+                  <button
+                    onClick={() => setMobileExpanded(prev => prev === cat.to ? null : cat.to)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                      isCatActive(cat) ? 'text-white bg-white/8' : 'text-white/50 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <span>{cat.label}</span>
+                    <svg
+                      className={`w-4 h-4 opacity-50 transition-transform duration-200 ${mobileExpanded === cat.to ? 'rotate-180' : ''}`}
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <AnimatePresence>
+                    {mobileExpanded === cat.to && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="ml-3 mt-0.5 mb-1 pl-3 border-l border-white/8 flex flex-col gap-0.5">
+                          {cat.items.map((item, i) =>
+                            item === null ? (
+                              <div key={i} className="h-px bg-white/5 my-0.5" />
+                            ) : (
+                              <Link
+                                key={item.to}
+                                to={item.to}
+                                className="px-2 py-2 text-sm text-white/45 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+                              >
+                                {item.label}
+                              </Link>
+                            )
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               ))}
             </div>
           </motion.div>

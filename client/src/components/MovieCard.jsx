@@ -8,7 +8,8 @@ export const MovieCard = memo(function MovieCard({ movie, type = 'movie', index 
   const id    = movie.id
   const title = movie.title || movie.name || ''
   const date  = movie.release_date || movie.first_air_date || ''
-  const poster = IMG(movie.poster_path, 'w342')
+  const rawPoster = movie.poster_path
+  const poster = rawPoster?.startsWith('http') ? rawPoster : IMG(rawPoster, 'w342')
   const rating = movie.vote_average
   const href  = type === 'tv' ? `/tv/${id}` : `/movie/${id}`
 

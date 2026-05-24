@@ -431,9 +431,18 @@ export function AuthModal({ open, onClose }) {
                   <DotMatrixLogo />
                 </TiltIcon>
                 <div>
-                  <div className="text-[22px] font-extrabold tracking-[-0.03em] text-white leading-none"
+                  <div className="flex text-[22px] font-extrabold tracking-[-0.03em] text-white leading-none"
                     style={{ fontFamily: "'League Spartan', sans-serif" }}>
-                    KINO
+                    {'KINO'.split('').map((letter, i) => (
+                      <span
+                        key={i}
+                        style={{ display: 'inline-block', transition: 'transform 0.06s' }}
+                        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)' }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}
+                      >
+                        {letter}
+                      </span>
+                    ))}
                   </div>
                   <div className="text-[11px] font-medium uppercase tracking-[0.14em] mt-1"
                     style={{ fontFamily: "'League Spartan', sans-serif", color: 'rgba(252,103,54,0.7)' }}>

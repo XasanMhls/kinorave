@@ -5,7 +5,7 @@ import { VideoPlayer } from '../components/VideoPlayer'
 import { MovieRow } from '../components/MovieRow'
 import { CreateLobbyModal } from '../components/CreateLobbyModal'
 import { Comments } from '../components/Comments'
-import { getMovieDetails, IMG, BACKDROP } from '../services/tmdb'
+import { getMovieDetails, IMG, BACKDROP, findTrailer } from '../services/tmdb'
 import { formatRuntime, formatYear, formatRating, formatVotes, getRatingColor } from '../utils/format'
 
 export function MoviePage({ onAuthOpen }) {
@@ -49,6 +49,8 @@ export function MoviePage({ onAuthOpen }) {
   const genres   = movie.genres?.map(g => g.name) || []
   const cast     = movie.credits?.cast?.slice(0, 8) || []
   const similar  = movie.similar?.results?.slice(0, 12) || []
+  const trailer  = findTrailer(movie.videos)
+  const providers = movie['watch/providers']?.results?.RU
 
   return (
     <div className="min-h-screen bg-bg-base">
@@ -152,6 +154,69 @@ export function MoviePage({ onAuthOpen }) {
                 Watch Party
               </motion.button>
             </div>
+
+            {/* Trailer */}
+            <div className="mb-8">
+              {trailer ? (
+                <div className="rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.6)]" style={{ aspectRatio: '16/9' }}>
+                  <iframe
+                    src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&rel=0&modestbranding=1`}
+                    allow="autoplay; encrypted-media; fullscreen"
+                    allowFullScreen
+                    className="w-full h-full border-0"
+                    title="Трейлер"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-bg-elevated border border-border">
+                  <svg className="w-5 h-5 text-text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.362a1 1 0 01-1.447.894L15 14M3 8a1 1 0 011-1h9a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V8z" />
+                  </svg>
+                  <span className="text-text-muted text-sm">Трейлер не найден</span>
+                  <a
+                    href={`https://www.youtube.com/results?search_query=${encodeURIComponent((movie.title || movie.original_title) + ' трейлер')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/80 text-white text-xs font-medium hover:bg-red-600 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                    Найти на YouTube
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* Watch Providers */}
+            {providers && (providers.flatrate || providers.rent || providers.buy) && (
+              <div className="mb-8">
+                <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">Где смотреть</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[...(providers.flatrate || []), ...(providers.rent || []), ...(providers.buy || [])]
+                    .filter((p, i, arr) => arr.findIndex(x => x.provider_id === p.provider_id) === i)
+                    .map(p => (
+                      <a
+                        key={p.provider_id}
+                        href={providers.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-bg-elevated border border-border hover:border-violet-500/40 hover:bg-violet-500/5 transition-all group"
+                        title={p.provider_name}
+                      >
+                        <img
+                          src={`https://image.tmdb.org/t/p/w45${p.logo_path}`}
+                          alt={p.provider_name}
+                          className="w-6 h-6 rounded"
+                        />
+                        <span className="text-xs text-white/60 group-hover:text-white transition-colors">{p.provider_name}</span>
+                      </a>
+                    ))
+                  }
+                </div>
+                <p className="text-xs text-text-muted mt-2">Данные от JustWatch / TMDB</p>
+              </div>
+            )}
 
             {/* Overview */}
             {movie.overview && (

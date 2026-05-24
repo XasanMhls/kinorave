@@ -1,4 +1,4 @@
-const BASE = '/api'
+const BASE = (import.meta.env.VITE_API_URL || '') + '/api'
 
 // Token is stored here after login so it can be sent as Bearer
 let _token = null

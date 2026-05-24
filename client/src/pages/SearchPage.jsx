@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { MovieCard, MovieCardSkeleton } from '../components/MovieCard'
 import { searchMulti } from '../services/tmdb'
+import { searchKP } from '../services/poiskkino'
 
 function useDebounce(value, delay) {
   const [debounced, setDebounced] = useState(value)
@@ -28,14 +29,28 @@ export function SearchPage() {
     if (!debounced.trim()) { setResults([]); setTotal(0); return }
     setLoading(true)
     setSearchParams({ q: debounced }, { replace: true })
-    searchMulti(debounced, 'ru', 1)
-      .then(data => {
-        setResults(data.results?.filter(r => r.media_type !== 'person') || [])
-        setTotal(data.total_results || 0)
-        setPage(1)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
+
+    Promise.allSettled([
+      searchMulti(debounced, 'ru', 1),
+      searchKP(debounced, 10),
+    ]).then(([tmdbRes, kpRes]) => {
+      const tmdb = tmdbRes.status === 'fulfilled'
+        ? (tmdbRes.value.results || []).filter(r => r.media_type !== 'person')
+        : []
+
+      // Only KP results that have a TMDB ID (so the movie page works)
+      const kp = kpRes.status === 'fulfilled'
+        ? (kpRes.value.results || []).filter(m => m._source === 'kp' && m.id !== m.kp_id)
+        : []
+
+      // Deduplicate: skip KP items already in TMDB results
+      const tmdbIds = new Set(tmdb.map(m => m.id))
+      const uniqueKP = kp.filter(m => !tmdbIds.has(m.id))
+
+      setResults([...tmdb, ...uniqueKP])
+      setTotal(tmdbRes.status === 'fulfilled' ? (tmdbRes.value.total_results || 0) + uniqueKP.length : 0)
+      setPage(1)
+    }).finally(() => setLoading(false))
   }, [debounced])
 
   const loadMore = () => {
@@ -113,7 +128,7 @@ export function SearchPage() {
             <MovieCard
               key={item.id}
               movie={item}
-              type={item.media_type === 'tv' ? 'tv' : 'movie'}
+              type={item.media_type === 'tv' || item.type === 'tv' ? 'tv' : 'movie'}
               index={i}
             />
           ))}

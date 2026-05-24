@@ -9,6 +9,8 @@ import authRouter from "./routes/auth.js";
 import friendsRouter from "./routes/friends.js";
 import lobbyRouter from "./routes/lobby.js";
 import streamRouter from "./routes/stream.js";
+import scrapeRouter from "./routes/scrape.js";
+import poiskkinoRouter from "./routes/poiskkino.js";
 import { registerSocketHandlers } from "./socket/handlers.js";
 
 const PORT = process.env.PORT || 3001;
@@ -42,6 +44,8 @@ app.use("/api/auth", authRouter);
 app.use("/api/friends", friendsRouter);
 app.use("/api/lobby", lobbyRouter);
 app.use("/api/stream", streamRouter);
+app.use("/api/scrape", scrapeRouter);
+app.use("/api/poiskkino", poiskkinoRouter);
 
 app.get("/health", (_, res) => res.json({ ok: true, ts: Date.now() }));
 

@@ -9,7 +9,7 @@ export function getSocket() {
 export function connectSocket(token) {
   if (socket?.connected) return socket
 
-  socket = io('http://localhost:3001', {
+  socket = io(import.meta.env.VITE_API_URL || undefined, {
     auth: { token },
     reconnection: true,
     reconnectionDelay: 1000,

@@ -16,6 +16,7 @@
     "express": "^4.19.2",
     "mongoose": "^9.4.1",
     "nanoid": "^5.1.11",
+    "puppeteer": "^25.0.4",
     "socket.io": "^4.7.5"
   }
 }

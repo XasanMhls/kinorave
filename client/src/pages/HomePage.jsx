@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { HeroSection } from '../components/HeroSection'
 import { MovieRow } from '../components/MovieRow'
 import { CreateLobbyModal } from '../components/CreateLobbyModal'
@@ -7,7 +8,11 @@ import {
   getTrendingTV, getPopularSeries, getTopRatedSeries,
   getAnimatedMovies, getAnimatedSeries, getTrendingAnime,
   getActionMovies, getHorrorMovies, getScifiMovies,
+  GENRE_META,
 } from '../services/tmdb'
+import { getKPPopular } from '../services/poiskkino'
+
+const CATEGORY_IDS = [28, 35, 27, 878, 10749, 18, 53, 14, 16, 10402, 99, 10751, 80, 36, 12, 37, 10752, 9648, 10770]
 
 export function HomePage({ onAuthOpen }) {
   const [data, setData]         = useState({})
@@ -30,6 +35,7 @@ export function HomePage({ onAuthOpen }) {
       getActionMovies(),
       getHorrorMovies(),
       getScifiMovies(),
+      getKPPopular(20),
     ]).then(results => {
       const r = v => v.status === 'fulfilled' ? v.value.results || [] : []
       setData({
@@ -46,6 +52,7 @@ export function HomePage({ onAuthOpen }) {
         action:       r(results[10]),
         horror:       r(results[11]),
         scifi:        r(results[12]),
+        kpPopular:    r(results[13]),
       })
     }).finally(() => setLoading(false))
   }, [])
@@ -57,6 +64,40 @@ export function HomePage({ onAuthOpen }) {
       <HeroSection movies={hero} onWatchParty={m => setPartyMovie(m)} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-14 space-y-14">
+        {/* Categories */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-black text-white tracking-tight">Категории</h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {CATEGORY_IDS.map(id => {
+              const meta = GENRE_META[id]
+              if (!meta) return null
+              return (
+                <Link
+                  key={id}
+                  to={`/genre/${id}`}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium
+                             border border-white/8 text-white/60
+                             hover:border-violet-500/60 hover:text-violet-300 hover:bg-violet-500/10
+                             transition-all duration-150"
+                >
+                  <span>{meta.emoji}</span>
+                  <span>{meta.label}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Кинопоиск */}
+        {(data.kpPopular?.length > 0 || loading) && (
+          <>
+            <SectionHeader title="Кинопоиск" emoji="🇷🇺" />
+            <MovieRow title="Популярное на Кинопоиске" movies={data.kpPopular} loading={loading} type="movie" />
+          </>
+        )}
+
         {/* Movies */}
         <SectionHeader title="Фильмы" emoji="🎬" />
         <MovieRow title="В тренде сейчас"     movies={data.trending}   loading={loading} type="movie" />
