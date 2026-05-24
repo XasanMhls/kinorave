@@ -173,27 +173,12 @@ function SyncOverlay({ syncState, isHost, onSyncAction }) {
               : 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.6) 100%)'
             }}
           >
-            {/* Center play/pause button */}
-            <div className="flex-1 flex items-center justify-center">
-              <button
-                onClick={handlePlayPause}
-                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all ${
-                  isHost
-                    ? 'bg-white/15 hover:bg-white/25 text-white hover:scale-110 active:scale-95 cursor-pointer'
-                    : 'bg-white/5 text-white/30 cursor-default'
-                }`}
-              >
-                {playing ? (
-                  <svg className="w-7 h-7 sm:w-8 sm:h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
-                ) : (
-                  <svg className="w-7 h-7 sm:w-8 sm:h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                )}
-              </button>
-            </div>
+            {/* Spacer — click anywhere to toggle */}
+            <div className="flex-1" />
 
-            {/* Pause label */}
+            {/* Pause label in center */}
             {paused && (
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-8 sm:translate-y-10 text-center pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
                 <p className="text-white/50 text-xs sm:text-sm">
                   {isHost ? 'Нажмите для продолжения' : 'Хост поставил на паузу'}
                 </p>
@@ -205,6 +190,21 @@ function SyncOverlay({ syncState, isHost, onSyncAction }) {
               className="flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2"
               onClick={(e) => e.stopPropagation()}
             >
+              {/* Play / Pause button */}
+              <button
+                onClick={handlePlayPause}
+                className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-md transition-all ${btnCls}`}
+                title={playing ? 'Пауза' : 'Играть'}
+              >
+                {playing ? (
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+                ) : (
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                )}
+              </button>
+
+              <div className="w-px h-4 bg-white/10 mx-0.5" />
+
               {/* Seek buttons */}
               <button onClick={() => handleSeek(-60)} className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-md text-[10px] sm:text-xs font-bold transition-all ${btnCls}`} title="-1 мин">
                 -1м

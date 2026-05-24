@@ -1,9 +1,17 @@
 const BASE = (import.meta.env.VITE_API_URL || '') + '/api'
 
-// Token is stored here after login so it can be sent as Bearer
+// Token persisted in localStorage so it survives page reloads
 let _token = null
-export function setApiToken(t) { _token = t }
-export function getApiToken()  { return _token }
+try { _token = localStorage.getItem('auth_token') } catch {}
+
+export function setApiToken(t) {
+  _token = t
+  try {
+    if (t) localStorage.setItem('auth_token', t)
+    else localStorage.removeItem('auth_token')
+  } catch {}
+}
+export function getApiToken() { return _token }
 
 async function request(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers }

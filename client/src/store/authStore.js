@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { authApi, setApiToken } from '../services/api'
+import { authApi, setApiToken, getApiToken } from '../services/api'
 import { connectSocket, disconnectSocket } from '../services/socket'
 
 export const useAuthStore = create((set, get) => ({
@@ -11,22 +11,36 @@ export const useAuthStore = create((set, get) => ({
   setError: (error) => set({ error }),
 
   init: async () => {
+    // Restore token from localStorage before calling /me
+    const saved = getApiToken()
+    if (saved) {
+      setApiToken(saved)
+      connectSocket(saved)
+    }
+
     try {
       const data = await Promise.race([
         authApi.me(),
         new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
       ])
       if (data.user) {
-        set({ user: data.user, token: data.token || null, loading: false })
-        if (data.token) {
-          setApiToken(data.token)
-          connectSocket(data.token)
+        const token = data.token || saved || null
+        set({ user: data.user, token, loading: false })
+        if (token) {
+          setApiToken(token)
+          connectSocket(token)
         }
       } else {
+        setApiToken(null)
         set({ user: null, token: null, loading: false })
       }
     } catch {
-      set({ user: null, token: null, loading: false })
+      // If we had a saved token, keep trying with it
+      if (saved) {
+        set({ user: null, token: null, loading: false })
+      } else {
+        set({ user: null, token: null, loading: false })
+      }
     }
   },
 
