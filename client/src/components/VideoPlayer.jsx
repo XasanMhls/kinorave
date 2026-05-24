@@ -7,40 +7,76 @@ const API_URL = import.meta.env.VITE_API_URL || ''
 // ─── Embed providers ─────────────────────────────────────────────────────────
 const EMBEDS = [
   {
+    key: 'vidlink',
+    label: 'Плеер 1',
+    movie: (id)       => `https://vidlink.pro/movie/${id}?primaryColor=8b5cf6&secondaryColor=6d28d9&iconColor=fff&autoplay=true`,
+    tv:    (id, s, e) => `https://vidlink.pro/tv/${id}/${s}/${e}?primaryColor=8b5cf6&secondaryColor=6d28d9&iconColor=fff&autoplay=true`,
+  },
+  {
+    key: 'embed_su',
+    label: 'Плеер 2',
+    movie: (id)       => `https://embed.su/embed/movie/${id}`,
+    tv:    (id, s, e) => `https://embed.su/embed/tv/${id}/${s}/${e}`,
+  },
+  {
     key: 'vidsrc_me',
-    label: 'VidSrc',
+    label: 'Плеер 3',
     movie: (id)       => `https://vidsrc.me/embed/movie?tmdb=${id}`,
     tv:    (id, s, e) => `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}`,
   },
   {
+    key: 'vidsrc_icu',
+    label: 'Плеер 4',
+    movie: (id)       => `https://vidsrc.icu/embed/movie/${id}`,
+    tv:    (id, s, e) => `https://vidsrc.icu/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    key: 'autoembed',
+    label: 'Плеер 5',
+    movie: (id)       => `https://autoembed.cc/embed/oplayer.php?id=${id}`,
+    tv:    (id, s, e) => `https://autoembed.cc/embed/oplayer.php?id=${id}&s=${s}&e=${e}`,
+  },
+  {
     key: 'vidsrc_pm',
-    label: 'VidSrc 2',
+    label: 'Плеер 6',
     movie: (id)       => `https://vidsrc.pm/embed/movie/${id}`,
     tv:    (id, s, e) => `https://vidsrc.pm/embed/tv/${id}/${s}/${e}`,
   },
   {
     key: 'vidsrc_co',
-    label: 'VidSrc 3',
+    label: 'Плеер 7',
     movie: (id)       => `https://player.vidsrc.co/embed/movie/${id}`,
     tv:    (id, s, e) => `https://player.vidsrc.co/embed/tv/${id}/${s}/${e}`,
   },
   {
     key: 'multiembed',
-    label: 'MultiEmbed',
+    label: 'Плеер 8',
     movie: (id)       => `https://multiembed.mov/?video_id=${id}&tmdb=1`,
     tv:    (id, s, e) => `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${s}&e=${e}`,
   },
   {
     key: 'nontongo',
-    label: 'NonTongo',
+    label: 'Плеер 9',
     movie: (id)       => `https://nontongo.win/embed/movie/${id}`,
     tv:    (id, s, e) => `https://nontongo.win/embed/tv/${id}/${s}/${e}`,
   },
   {
+    key: 'vidsrc_to',
+    label: 'Плеер 10',
+    movie: (id)       => `https://vidsrc.to/embed/movie/${id}`,
+    tv:    (id, s, e) => `https://vidsrc.to/embed/tv/${id}/${s}/${e}`,
+  },
+  {
     key: '2embed_cc',
-    label: '2Embed',
+    label: 'Плеер 11',
     movie: (id)       => `https://www.2embed.cc/embed/${id}`,
     tv:    (id, s, e) => `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`,
+  },
+  {
+    key: 'moviee',
+    label: 'Плеер 12',
+    movie: (id)       => `https://moviee.tv/embed/movie/${id}`,
+    tv:    (id, s, e) => `https://moviee.tv/embed/tv/${id}/${s}/${e}`,
   },
 ]
 
@@ -131,7 +167,7 @@ function SyncBar({ syncState, isHost, onSyncAction }) {
   return (
     <div className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-3 h-9 sm:h-10 bg-[#0c0c16] border-t border-white/5 rounded-b-xl">
       {/* Play / Pause */}
-      <button onClick={handlePlayPause} className={`${btn} w-7 h-7 sm:w-8 sm:h-8`} title={playing ? 'Пауза' : 'Play'}>
+      <button onClick={handlePlayPause} className={`${btn} w-7 h-7 sm:w-8 sm:h-8`} title={playing ? 'Пауза' : 'Воспроизвести'}>
         {playing ? (
           <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
         ) : (
@@ -240,7 +276,7 @@ export function VideoPlayer({
         setHlsSources(sources)
         setHdAvailable(true)
         setMode('hls')
-        notify('Прямой поток найден — играю в HD')
+        notify('Прямой поток найден — воспроизвожу в HD')
       }
     })
 
@@ -302,7 +338,7 @@ export function VideoPlayer({
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; web-share"
             referrerPolicy="no-referrer-when-downgrade"
             className="absolute inset-0 w-full h-full border-0"
-            title="Video Player"
+            title="Видеоплеер"
           />
         )}
 
@@ -342,7 +378,7 @@ export function VideoPlayer({
           {mode === 'hls' && (
             <button onClick={() => setMode('iframe')}
               className="px-2 py-1 rounded-lg bg-black/70 backdrop-blur-md border border-white/10 text-[10px] text-white/60 hover:text-white transition-colors">
-              Зеркала
+              Другие плееры
             </button>
           )}
 
@@ -382,7 +418,7 @@ export function VideoPlayer({
                   <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  Другой
+                  Следующий
                 </button>
               )}
             </>
@@ -438,7 +474,7 @@ export function VideoPlayer({
                     )
                   })}
                 </div>
-                <p className="text-xs text-white/20 mt-2 ml-1">Открываются на сайте провайдера в новой вкладке</p>
+                <p className="text-xs text-white/20 mt-2 ml-1">Откроется в новой вкладке</p>
               </motion.div>
             )}
           </AnimatePresence>
