@@ -236,7 +236,7 @@ export function MoviePage({ onAuthOpen }) {
             animate={{ opacity: 1, y: 0 }}
             className="mt-8"
           >
-            <VideoPlayer movieId={movie.id} movieType="movie" />
+            <VideoPlayer movieId={movie.id} movieType="movie" imdbId={movie.imdb_id} />
           </motion.div>
         )}
 

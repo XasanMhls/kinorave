@@ -88,7 +88,7 @@ export const getPopularSeries   = (lang='ru', page=1) => tmdb('/tv/popular',    
 export const getTopRatedSeries  = (lang='ru', page=1) => tmdb('/tv/top_rated',       { language: lang, page })
 export const getOnAirSeries     = (lang='ru', page=1) => tmdb('/tv/on_the_air',      { language: lang, page })
 export const getAiringToday     = (lang='ru', page=1) => tmdb('/tv/airing_today',    { language: lang, page })
-export const getSeriesDetails   = (id, lang='ru')     => tmdb(`/tv/${id}`,           { language: lang, append_to_response: 'credits,similar,videos,watch/providers', include_video_language: TRAILER_LANGS })
+export const getSeriesDetails   = (id, lang='ru')     => tmdb(`/tv/${id}`,           { language: lang, append_to_response: 'credits,similar,videos,watch/providers,external_ids', include_video_language: TRAILER_LANGS })
 export const getSeasonDetails   = (tvId, s, lang='ru') => tmdb(`/tv/${tvId}/season/${s}`, { language: lang })
 export const getSeriesByGenre   = (genreId, lang='ru', page=1) =>
   tmdb('/discover/tv', { language: lang, with_genres: genreId, sort_by: 'popularity.desc', page })

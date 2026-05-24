@@ -218,7 +218,7 @@ export function TvShowPage({ onAuthOpen }) {
         {/* Player */}
         {playing && (
           <motion.div ref={playerRef} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8">
-            <VideoPlayer movieId={show.id} movieType="tv" season={season} episode={episode} />
+            <VideoPlayer movieId={show.id} movieType="tv" season={season} episode={episode} imdbId={show.external_ids?.imdb_id} />
           </motion.div>
         )}
 

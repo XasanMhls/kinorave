@@ -5,7 +5,45 @@ import { motion, AnimatePresence } from 'framer-motion'
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 // ─── Embed providers ─────────────────────────────────────────────────────────
+// needsImdb: true — provider uses IMDB ID, falls back to TMDB if no IMDB available
 const EMBEDS = [
+  // ── Русские озвучки (IMDB ID) ──
+  {
+    key: 'kinobox',
+    label: 'Кинобокс (RU)',
+    needsImdb: true,
+    movie: (id)       => `https://kinobox.tv/embed/${id}`,
+    tv:    (id, s, e) => `https://kinobox.tv/embed/${id}?season=${s}&episode=${e}`,
+  },
+  {
+    key: 'collaps',
+    label: 'Коллапс (RU)',
+    needsImdb: true,
+    movie: (id)       => `https://api.collaps.cc/embed?imdb=${id}`,
+    tv:    (id, s, e) => `https://api.collaps.cc/embed?imdb=${id}&season=${s}&episode=${e}`,
+  },
+  {
+    key: 'videocdn',
+    label: 'ВидеоCDN (RU)',
+    needsImdb: true,
+    movie: (id)       => `https://cdn.movie/embed/${id}`,
+    tv:    (id, s, e) => `https://cdn.movie/embed/${id}/s${s}/e${e}`,
+  },
+  {
+    key: 'hdvb',
+    label: 'HDVB (RU)',
+    needsImdb: true,
+    movie: (id)       => `https://hdvb.co/embed/${id}`,
+    tv:    (id, s, e) => `https://hdvb.co/embed/${id}?s=${s}&e=${e}`,
+  },
+  {
+    key: 'alloha',
+    label: 'Аллоха (RU)',
+    needsImdb: true,
+    movie: (id)       => `https://alloha.tv/embed/${id}`,
+    tv:    (id, s, e) => `https://alloha.tv/embed/${id}?s=${s}&e=${e}`,
+  },
+  // ── Мультиязычные (TMDB ID) ──
   {
     key: 'vidlink',
     label: 'Плеер 1',
@@ -37,46 +75,16 @@ const EMBEDS = [
     tv:    (id, s, e) => `https://autoembed.cc/embed/oplayer.php?id=${id}&s=${s}&e=${e}`,
   },
   {
-    key: 'vidsrc_pm',
-    label: 'Плеер 6',
-    movie: (id)       => `https://vidsrc.pm/embed/movie/${id}`,
-    tv:    (id, s, e) => `https://vidsrc.pm/embed/tv/${id}/${s}/${e}`,
-  },
-  {
-    key: 'vidsrc_co',
-    label: 'Плеер 7',
-    movie: (id)       => `https://player.vidsrc.co/embed/movie/${id}`,
-    tv:    (id, s, e) => `https://player.vidsrc.co/embed/tv/${id}/${s}/${e}`,
-  },
-  {
     key: 'multiembed',
-    label: 'Плеер 8',
+    label: 'Плеер 6',
     movie: (id)       => `https://multiembed.mov/?video_id=${id}&tmdb=1`,
     tv:    (id, s, e) => `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${s}&e=${e}`,
   },
   {
     key: 'nontongo',
-    label: 'Плеер 9',
+    label: 'Плеер 7',
     movie: (id)       => `https://nontongo.win/embed/movie/${id}`,
     tv:    (id, s, e) => `https://nontongo.win/embed/tv/${id}/${s}/${e}`,
-  },
-  {
-    key: 'vidsrc_to',
-    label: 'Плеер 10',
-    movie: (id)       => `https://vidsrc.to/embed/movie/${id}`,
-    tv:    (id, s, e) => `https://vidsrc.to/embed/tv/${id}/${s}/${e}`,
-  },
-  {
-    key: '2embed_cc',
-    label: 'Плеер 11',
-    movie: (id)       => `https://www.2embed.cc/embed/${id}`,
-    tv:    (id, s, e) => `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`,
-  },
-  {
-    key: 'moviee',
-    label: 'Плеер 12',
-    movie: (id)       => `https://moviee.tv/embed/movie/${id}`,
-    tv:    (id, s, e) => `https://moviee.tv/embed/tv/${id}/${s}/${e}`,
   },
 ]
 
@@ -200,6 +208,7 @@ export function VideoPlayer({
   movieType    = 'movie',
   season       = 1,
   episode      = 1,
+  imdbId       = null,
   syncState    = null,
   isHost       = false,
   onSyncAction = null,
@@ -220,15 +229,21 @@ export function VideoPlayer({
 
   const activeSeason   = inLobby ? (syncState?.season  ?? season)  : season
   const activeEpisode  = inLobby ? (syncState?.episode ?? episode) : episode
-  const activeEmbedIdx = inLobby
-    ? Math.max(0, EMBEDS.findIndex(e => e.key === syncState?.source))
-    : embedIdx
-  const canControl  = !inLobby || isHost
-  const activeEmbed = EMBEDS[activeEmbedIdx]
 
+  // Filter out Russian providers when IMDB ID is unavailable
+  const availableEmbeds = EMBEDS.filter(e => !e.needsImdb || imdbId)
+
+  const activeEmbedIdx = inLobby
+    ? Math.max(0, availableEmbeds.findIndex(e => e.key === syncState?.source))
+    : Math.min(embedIdx, availableEmbeds.length - 1)
+  const canControl  = !inLobby || isHost
+  const activeEmbed = availableEmbeds[activeEmbedIdx]
+
+  // Russian players use IMDB ID, others use TMDB ID
+  const embedId = (activeEmbed.needsImdb && imdbId) ? imdbId : movieId
   const embedUrl = movieType === 'tv'
-    ? activeEmbed.tv(movieId, activeSeason, activeEpisode)
-    : activeEmbed.movie(movieId)
+    ? activeEmbed.tv(embedId, activeSeason, activeEpisode)
+    : activeEmbed.movie(embedId)
 
   const notify = useCallback((text, duration = 4000) => {
     setNotification(text)
@@ -298,7 +313,7 @@ export function VideoPlayer({
     if (!prev) { prevSync.current = { ...syncState }; return }
 
     if (prev.source !== syncState.source)
-      notify(`Источник: ${EMBEDS.find(e => e.key === syncState.source)?.label ?? syncState.source}`)
+      notify(`Источник: ${availableEmbeds.find(e => e.key === syncState.source)?.label ?? syncState.source}`)
     else if (prev.isPlaying && !syncState.isPlaying)
       notify('Пауза')
     else if (!prev.isPlaying && syncState.isPlaying)
@@ -313,11 +328,11 @@ export function VideoPlayer({
     setShowMenu(false)
     setMode('iframe')
     if (inLobby && isHost && onSyncAction)
-      onSyncAction('source', { source: EMBEDS[idx].key, season: activeSeason, episode: activeEpisode })
+      onSyncAction('source', { source: availableEmbeds[idx].key, season: activeSeason, episode: activeEpisode })
     else setEmbedIdx(idx)
-  }, [inLobby, isHost, onSyncAction, activeSeason, activeEpisode])
+  }, [inLobby, isHost, onSyncAction, activeSeason, activeEpisode, availableEmbeds])
 
-  const goNext = useCallback(() => switchEmbed((activeEmbedIdx + 1) % EMBEDS.length), [activeEmbedIdx, switchEmbed])
+  const goNext = useCallback(() => switchEmbed((activeEmbedIdx + 1) % availableEmbeds.length), [activeEmbedIdx, switchEmbed, availableEmbeds])
 
   return (
     <div className="w-full">
@@ -400,7 +415,7 @@ export function VideoPlayer({
                   {showMenu && canControl && (
                     <motion.div initial={{ opacity: 0, y: 6, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.95 }} transition={{ duration: 0.12 }}
                       className="absolute right-0 top-full mt-1 w-36 bg-[#12121a]/96 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden shadow-2xl z-50">
-                      {EMBEDS.map((e, i) => (
+                      {availableEmbeds.map((e, i) => (
                         <button key={e.key} onClick={() => switchEmbed(i)}
                           className={`w-full flex items-center gap-2 px-2.5 py-2 text-xs transition-colors ${i === activeEmbedIdx ? 'text-white bg-violet-600/30 font-semibold' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
                           <div className={`w-1 h-1 rounded-full flex-shrink-0 ${i === activeEmbedIdx ? 'bg-violet-400' : 'bg-white/20'}`} />
@@ -455,9 +470,11 @@ export function VideoPlayer({
               >
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {EMBEDS.map((e) => {
+                    const eid = (e.needsImdb && imdbId) ? imdbId : movieId
+                    if (e.needsImdb && !imdbId) return null
                     const url = movieType === 'tv'
-                      ? e.tv(movieId, activeSeason, activeEpisode)
-                      : e.movie(movieId)
+                      ? e.tv(eid, activeSeason, activeEpisode)
+                      : e.movie(eid)
                     return (
                       <a
                         key={e.key}
