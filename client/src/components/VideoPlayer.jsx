@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
-// ─── Embed providers (live-tested 200 OK with real player content) ────────────
+// ─── Embed providers ─────────────────────────────────────────────────────────
 const EMBEDS = [
   {
     key: 'vidsrc_me',
@@ -44,7 +44,17 @@ const EMBEDS = [
   },
 ]
 
-// ─── HLS native player ────────────────────────────────────────────────────────
+// ─── Format seconds to HH:MM:SS ──────────────────────────────────────────────
+function fmtTime(sec) {
+  if (!sec || sec < 0) sec = 0
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  const s = Math.floor(sec % 60)
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+  return `${m}:${String(s).padStart(2,'0')}`
+}
+
+// ─── HLS native player ───────────────────────────────────────────────────────
 function HlsPlayer({ sources, onFallback }) {
   const videoRef = useRef(null)
   const hlsRef   = useRef(null)
@@ -79,6 +89,87 @@ function HlsPlayer({ sources, onFallback }) {
       className="absolute inset-0 w-full h-full"
       style={{ background: '#000' }}
     />
+  )
+}
+
+// ─── Sync Control Bar (lobby mode) ────────────────────────────────────────────
+function SyncBar({ syncState, isHost, onSyncAction }) {
+  const [currentTime, setCurrentTime] = useState(0)
+
+  useEffect(() => {
+    if (!syncState) return
+    const update = () => {
+      if (syncState.isPlaying && syncState.playedAt) {
+        const elapsed = (Date.now() - syncState.playedAt) / 1000
+        setCurrentTime((syncState.position || 0) + elapsed)
+      } else {
+        setCurrentTime(syncState.position || 0)
+      }
+    }
+    update()
+    const id = setInterval(update, 500)
+    return () => clearInterval(id)
+  }, [syncState?.isPlaying, syncState?.playedAt, syncState?.position])
+
+  const playing = syncState?.isPlaying
+
+  const handlePlayPause = () => {
+    if (!isHost || !onSyncAction) return
+    if (playing) {
+      onSyncAction('pause', {})
+    } else {
+      onSyncAction('play', { position: currentTime })
+    }
+  }
+
+  const handleSeek = (delta) => {
+    if (!isHost || !onSyncAction) return
+    onSyncAction('seek', { position: Math.max(0, currentTime + delta) })
+  }
+
+  const btnBase = "flex items-center justify-center rounded-lg transition-colors"
+  const hostBtn = `${btnBase} hover:bg-white/10 text-white/70 hover:text-white cursor-pointer`
+  const guestBtn = `${btnBase} text-white/20 cursor-default`
+  const btn = isHost ? hostBtn : guestBtn
+
+  return (
+    <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 bg-[#0a0a14] border-t border-white/6 rounded-b-2xl">
+      {/* Play / Pause */}
+      <button onClick={handlePlayPause} className={`${btn} w-9 h-9 sm:w-10 sm:h-10`} title={playing ? 'Пауза' : 'Играть'}>
+        {playing ? (
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+        ) : (
+          <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        )}
+      </button>
+
+      {/* Seek buttons */}
+      <button onClick={() => handleSeek(-60)} className={`${btn} w-8 h-8 sm:w-9 sm:h-9 text-xs font-bold`} title="-1 мин">
+        <span className="hidden sm:inline">-1м</span>
+        <svg className="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"/></svg>
+      </button>
+      <button onClick={() => handleSeek(-15)} className={`${btn} w-8 h-8 sm:w-9 sm:h-9 text-xs font-bold`} title="-15 сек">
+        -15
+      </button>
+      <button onClick={() => handleSeek(15)} className={`${btn} w-8 h-8 sm:w-9 sm:h-9 text-xs font-bold`} title="+15 сек">
+        +15
+      </button>
+      <button onClick={() => handleSeek(60)} className={`${btn} w-8 h-8 sm:w-9 sm:h-9 text-xs font-bold`} title="+1 мин">
+        <span className="hidden sm:inline">+1м</span>
+        <svg className="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z"/></svg>
+      </button>
+      <button onClick={() => handleSeek(300)} className={`${btn} w-8 h-8 sm:w-9 sm:h-9 text-xs font-bold hidden sm:flex`} title="+5 мин">
+        +5м
+      </button>
+
+      {/* Time display */}
+      <div className="flex-1" />
+      <div className="flex items-center gap-2">
+        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${playing ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`} />
+        <span className="text-white/80 text-sm sm:text-base font-mono tabular-nums">{fmtTime(currentTime)}</span>
+        <span className="text-white/30 text-xs hidden sm:inline">{playing ? 'играет' : 'пауза'}</span>
+      </div>
+    </div>
   )
 }
 
@@ -124,12 +215,12 @@ export function VideoPlayer({
     notifTimer.current = setTimeout(() => setNotification(null), 3500)
   }, [])
 
-  // ── Try to get direct stream: consumet first, Puppeteer as fallback ─────
+  // ── Try to get direct stream ───────────────────────────────────────────────
   useEffect(() => {
     if (inLobby) return
     setHdAvailable(false)
     setHlsSources([])
-    setMode('iframe') // show iframe immediately
+    setMode('iframe')
 
     const params = new URLSearchParams({ tmdbId: movieId, type: movieType })
     if (movieType === 'tv') { params.set('season', String(activeSeason)); params.set('episode', String(activeEpisode)) }
@@ -138,11 +229,8 @@ export function VideoPlayer({
     const abort = setTimeout(() => controller.abort(), 40000)
 
     async function findStream() {
-      // 1) Try consumet/FlixHQ — fast (~5-8s), no browser needed
       try {
-        const r = await fetch(`${API_URL}/api/stream?${params}`, {
-          signal: AbortSignal.timeout(12000),
-        })
+        const r = await fetch(`${API_URL}/api/stream?${params}`, { signal: AbortSignal.timeout(12000) })
         if (r.ok) {
           const data = await r.json()
           const sources = (data.sources || []).filter(s => s.url)
@@ -150,7 +238,6 @@ export function VideoPlayer({
         }
       } catch {}
 
-      // 2) Fallback: Puppeteer scraper (~20-25s per provider)
       if (controller.signal.aborted) return []
       try {
         const r = await fetch(`${API_URL}/api/scrape?${params}`, { signal: controller.signal })
@@ -159,7 +246,6 @@ export function VideoPlayer({
           return (data.sources || []).filter(s => s.url)
         }
       } catch {}
-
       return []
     }
 
@@ -176,7 +262,7 @@ export function VideoPlayer({
     return () => { clearTimeout(abort); controller.abort() }
   }, [movieId, movieType, activeSeason, activeEpisode, inLobby])
 
-  // ── reset on change ──────────────────────────────────────────────────────
+  // ── reset on change ────────────────────────────────────────────────────────
   useEffect(() => {
     setIframeKey(k => k + 1)
     setMode('iframe')
@@ -184,14 +270,22 @@ export function VideoPlayer({
     setShowLinks(false)
   }, [movieId, movieType, activeSeason, activeEpisode])
 
-  // ── lobby sync ───────────────────────────────────────────────────────────
+  // ── lobby sync notifications ───────────────────────────────────────────────
   useEffect(() => {
     if (!inLobby || !syncState) return
     const prev = prevSync.current
-    if (!prev) { prevSync.current = syncState; return }
+    if (!prev) { prevSync.current = { ...syncState }; return }
+
     if (prev.source !== syncState.source)
       notify(`Источник: ${EMBEDS.find(e => e.key === syncState.source)?.label ?? syncState.source}`)
-    prevSync.current = syncState
+    else if (prev.isPlaying && !syncState.isPlaying)
+      notify('Хост поставил на паузу')
+    else if (!prev.isPlaying && syncState.isPlaying)
+      notify('Хост запустил воспроизведение')
+    else if (Math.abs((prev.position || 0) - (syncState.position || 0)) > 5)
+      notify(`Хост перемотал на ${fmtTime(syncState.position)}`)
+
+    prevSync.current = { ...syncState }
   }, [syncState, inLobby, notify])
 
   const switchEmbed = useCallback((idx) => {
@@ -204,12 +298,11 @@ export function VideoPlayer({
 
   const goNext = useCallback(() => switchEmbed((activeEmbedIdx + 1) % EMBEDS.length), [activeEmbedIdx, switchEmbed])
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="w-full">
       {/* ── Video frame ── */}
       <div
-        className="relative w-full bg-black rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.8)]"
+        className={`relative w-full bg-black overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.8)] ${inLobby ? 'rounded-t-2xl' : 'rounded-2xl'}`}
         style={{ aspectRatio: '16/9' }}
       >
         {mode === 'hls' && (
@@ -312,53 +405,60 @@ export function VideoPlayer({
         </div>
       </div>
 
-      {/* ── Fallback: open in new tab ── */}
-      <div className="mt-3">
-        <button
-          onClick={() => setShowLinks(v => !v)}
-          className="flex items-center gap-2 text-sm text-white/35 hover:text-white/60 transition-colors"
-        >
-          <svg className={`w-4 h-4 transition-transform ${showLinks ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-          Плеер не работает? Открыть напрямую
-        </button>
+      {/* ── Sync control bar (lobby only) ── */}
+      {inLobby && (
+        <SyncBar syncState={syncState} isHost={isHost} onSyncAction={onSyncAction} />
+      )}
 
-        <AnimatePresence>
-          {showLinks && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.18 }}
-              className="overflow-hidden"
-            >
-              <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {EMBEDS.map((e) => {
-                  const url = movieType === 'tv'
-                    ? e.tv(movieId, activeSeason, activeEpisode)
-                    : e.movie(movieId)
-                  return (
-                    <a
-                      key={e.key}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-bg-elevated border border-border hover:border-violet-500/40 hover:bg-violet-500/5 transition-all group"
-                    >
-                      <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">{e.label}</span>
-                      <svg className="w-3.5 h-3.5 text-white/25 group-hover:text-violet-400 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </a>
-                  )
-                })}
-              </div>
-              <p className="text-xs text-white/20 mt-2 ml-1">Открываются на сайте провайдера в новой вкладке</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      {/* ── Fallback: open in new tab ── */}
+      {!inLobby && (
+        <div className="mt-3">
+          <button
+            onClick={() => setShowLinks(v => !v)}
+            className="flex items-center gap-2 text-sm text-white/35 hover:text-white/60 transition-colors"
+          >
+            <svg className={`w-4 h-4 transition-transform ${showLinks ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+            Плеер не работает? Открыть напрямую
+          </button>
+
+          <AnimatePresence>
+            {showLinks && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.18 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {EMBEDS.map((e) => {
+                    const url = movieType === 'tv'
+                      ? e.tv(movieId, activeSeason, activeEpisode)
+                      : e.movie(movieId)
+                    return (
+                      <a
+                        key={e.key}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-bg-elevated border border-border hover:border-violet-500/40 hover:bg-violet-500/5 transition-all group"
+                      >
+                        <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">{e.label}</span>
+                        <svg className="w-3.5 h-3.5 text-white/25 group-hover:text-violet-400 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    )
+                  })}
+                </div>
+                <p className="text-xs text-white/20 mt-2 ml-1">Открываются на сайте провайдера в новой вкладке</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   )
 }

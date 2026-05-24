@@ -49,7 +49,7 @@ export function WatchPartyPanel({ onClose }) {
   const typingList = Array.from(typingUsers).filter(u => u !== user?.username)
 
   return (
-    <div className="flex flex-col h-full bg-bg-surface border-l border-border-subtle">
+    <div className="flex flex-col h-full bg-bg-surface md:border-l border-border-subtle">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle flex-shrink-0">
         <div className="flex items-center gap-2">
