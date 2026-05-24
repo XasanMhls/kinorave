@@ -36,11 +36,9 @@ function MainLayout({ onAuthOpen, children }) {
 
 export default function App() {
   const [authOpen, setAuthOpen] = useState(false)
-  const { init, loading } = useAuthStore()
+  const { init } = useAuthStore()
 
   useEffect(() => { init() }, [])
-
-  if (loading) return <Spinner />
 
   const openAuth = () => setAuthOpen(true)
 

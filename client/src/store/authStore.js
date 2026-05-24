@@ -12,8 +12,10 @@ export const useAuthStore = create((set, get) => ({
 
   init: async () => {
     try {
-      set({ loading: true })
-      const data = await authApi.me()
+      const data = await Promise.race([
+        authApi.me(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+      ])
       if (data.user) {
         set({ user: data.user, token: data.token || null, loading: false })
         if (data.token) {
