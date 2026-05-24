@@ -93,13 +93,15 @@ function HlsPlayer({ sources, onFallback }) {
 }
 
 // ─── Hover Sync Overlay (lobby mode) ─────────────────────────────────────────
-function SyncOverlay({ syncState, isHost, onSyncAction }) {
+function SyncOverlay({ syncState, isHost, onSyncAction, onNotify }) {
   const [currentTime, setCurrentTime] = useState(0)
   const [visible, setVisible] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
   const hideTimer = useRef(null)
 
   const playing = syncState?.isPlaying
   const paused = !playing
+  const showPauseOverlay = paused && !dismissed
 
   // Live time counter
   useEffect(() => {
@@ -117,7 +119,12 @@ function SyncOverlay({ syncState, isHost, onSyncAction }) {
     return () => clearInterval(id)
   }, [syncState?.isPlaying, syncState?.playedAt, syncState?.position])
 
-  // Always visible when paused
+  // Reset dismissed when state changes
+  useEffect(() => {
+    if (playing) setDismissed(false)
+  }, [playing])
+
+  // Show controls on pause
   useEffect(() => {
     if (paused) { setVisible(true); clearTimeout(hideTimer.current) }
   }, [paused])
@@ -125,62 +132,80 @@ function SyncOverlay({ syncState, isHost, onSyncAction }) {
   const showControls = useCallback(() => {
     setVisible(true)
     clearTimeout(hideTimer.current)
-    if (playing) {
+    if (!showPauseOverlay) {
       hideTimer.current = setTimeout(() => setVisible(false), 3000)
     }
-  }, [playing])
+  }, [showPauseOverlay])
 
   const handlePlayPause = useCallback(() => {
-    if (!isHost || !onSyncAction) return
+    if (!isHost) {
+      // Guest: dismiss the overlay so they can watch, show a hint
+      if (showPauseOverlay) {
+        setDismissed(true)
+        hideTimer.current = setTimeout(() => setVisible(false), 3000)
+      }
+      onNotify?.('Только хост может управлять')
+      return
+    }
+    if (!onSyncAction) return
     if (playing) {
       onSyncAction('pause', {})
     } else {
       onSyncAction('play', { position: currentTime })
     }
-  }, [isHost, onSyncAction, playing, currentTime])
+  }, [isHost, onSyncAction, playing, currentTime, showPauseOverlay, onNotify])
 
   const handleSeek = useCallback((delta) => {
-    if (!isHost || !onSyncAction) return
+    if (!isHost) {
+      onNotify?.('Только хост может управлять')
+      return
+    }
+    if (!onSyncAction) return
     onSyncAction('seek', { position: Math.max(0, currentTime + delta) })
     showControls()
-  }, [isHost, onSyncAction, currentTime, showControls])
+  }, [isHost, onSyncAction, currentTime, showControls, onNotify])
 
   const btnCls = isHost
     ? "hover:bg-white/15 text-white/80 hover:text-white cursor-pointer active:scale-95"
-    : "text-white/30 cursor-default"
+    : "hover:bg-white/10 text-white/40 hover:text-white/60 cursor-pointer active:scale-95"
 
   return (
     <div
       className="absolute inset-0 z-20"
       onMouseMove={showControls}
       onMouseEnter={showControls}
-      onMouseLeave={() => playing && setVisible(false)}
+      onMouseLeave={() => !showPauseOverlay && setVisible(false)}
       onClick={(e) => {
-        // Only toggle on click on the backdrop area, not on buttons
         if (e.target === e.currentTarget) handlePlayPause()
       }}
     >
       <AnimatePresence>
-        {(visible || paused) && (
+        {(visible || showPauseOverlay) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="absolute inset-0 flex flex-col"
-            style={{ background: paused
-              ? 'rgba(0,0,0,0.82)'
-              : 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.6) 100%)'
+            onClick={(e) => {
+              if (e.target === e.currentTarget) handlePlayPause()
+            }}
+            style={{ background: showPauseOverlay
+              ? 'rgba(0,0,0,0.75)'
+              : 'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 25%, transparent 65%, rgba(0,0,0,0.55) 100%)'
             }}
           >
             {/* Spacer — click anywhere to toggle */}
-            <div className="flex-1" />
+            <div className="flex-1" onClick={handlePlayPause} />
 
             {/* Pause label in center */}
-            {paused && (
+            {showPauseOverlay && (
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                <p className="text-white/50 text-xs sm:text-sm">
-                  {isHost ? 'Нажмите для продолжения' : 'Хост поставил на паузу'}
+                <p className="text-white/60 text-sm sm:text-base font-medium">
+                  {isHost ? 'Нажмите ▶ для продолжения' : 'Хост поставил на паузу'}
+                </p>
+                <p className="text-white/30 text-xs mt-1">
+                  {isHost ? '' : 'Нажмите, чтобы скрыть'}
                 </p>
               </div>
             )}
@@ -385,6 +410,7 @@ export function VideoPlayer({
             syncState={syncState}
             isHost={isHost}
             onSyncAction={onSyncAction}
+            onNotify={notify}
           />
         )}
 
