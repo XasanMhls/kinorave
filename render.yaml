@@ -1,0 +1,40 @@
+services:
+  # ── Express + Socket.io backend ──
+  - type: web
+    name: kino-server
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: TMDB_API_KEY
+        sync: false
+      - key: POISKKINO_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+  # ── Vite React frontend ──
+  - type: web
+    name: kino-client
+    runtime: static
+    region: frankfurt
+    plan: free
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: client/dist
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://kino-server.onrender.com/api/*
+    envVars:
+      - key: VITE_TMDB_KEY
+        sync: false
+      - key: VITE_API_URL
+        sync: false
