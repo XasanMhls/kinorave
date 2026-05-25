@@ -128,6 +128,10 @@ export const searchTV     = (query, lang='ru', page=1) => tmdb('/search/tv',    
 export const getMovieGenres = (lang='ru') => tmdb('/genre/movie/list', { language: lang })
 export const getTvGenres    = (lang='ru') => tmdb('/genre/tv/list',    { language: lang })
 
+// ── Lightweight video fetch (no credits/similar overhead) ──
+export const getMovieVideos = (id, lang='ru') => tmdb(`/movie/${id}/videos`, { language: lang, include_video_language: TRAILER_LANGS })
+export const getTvVideos    = (id, lang='ru') => tmdb(`/tv/${id}/videos`,    { language: lang, include_video_language: TRAILER_LANGS })
+
 // ── Trailer helper ────────────────────────────────────────
 // Picks the best YouTube trailer from TMDB videos array
 export function findTrailer(videos) {

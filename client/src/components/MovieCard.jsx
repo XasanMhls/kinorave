@@ -1,8 +1,10 @@
-import { memo } from 'react'
+import { memo, useState, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { IMG } from '../services/tmdb'
+import { IMG, getMovieVideos, getTvVideos, findTrailer } from '../services/tmdb'
 import { formatYear, formatRating, getRatingColor } from '../utils/format'
+
+const trailerCache = new Map()
 
 export const MovieCard = memo(function MovieCard({ movie, type = 'movie', index = 0 }) {
   const id    = movie.id
@@ -13,11 +15,54 @@ export const MovieCard = memo(function MovieCard({ movie, type = 'movie', index 
   const rating = movie.vote_average
   const href  = type === 'tv' ? `/tv/${id}` : `/movie/${id}`
 
+  const [trailerKey, setTrailerKey] = useState(null)
+  const [showTrailer, setShowTrailer] = useState(false)
+  const hoverTimer = useRef(null)
+  const stopTimer  = useRef(null)
+
+  const handleMouseEnter = useCallback(() => {
+    hoverTimer.current = setTimeout(async () => {
+      const cacheKey = `${type}-${id}`
+
+      if (trailerCache.has(cacheKey)) {
+        const cached = trailerCache.get(cacheKey)
+        if (cached) {
+          setTrailerKey(cached)
+          setShowTrailer(true)
+          stopTimer.current = setTimeout(() => setShowTrailer(false), 10000)
+        }
+        return
+      }
+
+      try {
+        const videos = type === 'tv' ? await getTvVideos(id) : await getMovieVideos(id)
+        const trailer = findTrailer(videos)
+        const key = trailer?.key || null
+        trailerCache.set(cacheKey, key)
+        if (key) {
+          setTrailerKey(key)
+          setShowTrailer(true)
+          stopTimer.current = setTimeout(() => setShowTrailer(false), 10000)
+        }
+      } catch {
+        trailerCache.set(`${type}-${id}`, null)
+      }
+    }, 500)
+  }, [id, type])
+
+  const handleMouseLeave = useCallback(() => {
+    clearTimeout(hoverTimer.current)
+    clearTimeout(stopTimer.current)
+    setShowTrailer(false)
+  }, [])
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.4) }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <Link to={href} className="block group">
         <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-bg-elevated movie-card-hover">
@@ -33,6 +78,25 @@ export const MovieCard = memo(function MovieCard({ movie, type = 'movie', index 
               <svg className="w-10 h-10 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
               </svg>
+            </div>
+          )}
+
+          {/* Trailer overlay — oversized iframe hides all YouTube UI */}
+          {showTrailer && trailerKey && (
+            <div className="absolute inset-0 z-10 rounded-xl overflow-hidden pointer-events-none">
+              <div className="absolute bg-black"
+                style={{ top: '-80px', left: '-20px', right: '-20px', bottom: '-80px' }}>
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${trailerKey}?autoplay=1&mute=1&controls=0&modestbranding=1&showinfo=0&rel=0&iv_load_policy=3&fs=0&cc_load_policy=0&disablekb=1&playsinline=1&start=0&end=10&loop=1&playlist=${trailerKey}`}
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  allow="autoplay; encrypted-media"
+                  title=""
+                />
+              </div>
+              {/* Трейлер badge */}
+              <div className="absolute top-2 left-2 z-20 px-2 py-0.5 rounded-md bg-red-600/90 text-white text-[10px] font-bold uppercase tracking-wider">
+                Трейлер
+              </div>
             </div>
           )}
 
@@ -55,14 +119,16 @@ export const MovieCard = memo(function MovieCard({ movie, type = 'movie', index 
             </div>
           </div>
 
-          {/* Play icon on hover */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <div className="w-12 h-12 rounded-full bg-accent/90 backdrop-blur-sm flex items-center justify-center shadow-glow">
-              <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
+          {/* Play icon (hidden when trailer plays) */}
+          {!showTrailer && (
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <div className="w-12 h-12 rounded-full bg-accent/90 backdrop-blur-sm flex items-center justify-center shadow-glow">
+                <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Info below card */}
