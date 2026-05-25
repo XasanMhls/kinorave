@@ -2,12 +2,15 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
+import { useLobbyStore } from '../store/lobbyStore'
 
 export function WatchPartyPage({ onAuthOpen }) {
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const { create, loading: creating } = useLobbyStore()
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
+  const [screenError, setScreenError] = useState('')
 
   const handleJoin = (e) => {
     e.preventDefault()
@@ -15,6 +18,17 @@ export function WatchPartyPage({ onAuthOpen }) {
     if (!c) { setError('Введите код лобби'); return }
     if (!user) { onAuthOpen?.(); return }
     navigate(`/lobby/${c}`)
+  }
+
+  const handleCreateScreencast = async () => {
+    if (!user) { onAuthOpen?.(); return }
+    setScreenError('')
+    try {
+      const data = await create({ mode: 'screencast' })
+      navigate(`/lobby/${data.code}`)
+    } catch (err) {
+      setScreenError(err.message)
+    }
   }
 
   return (
@@ -33,6 +47,35 @@ export function WatchPartyPage({ onAuthOpen }) {
           </div>
           <h1 className="text-3xl font-black text-white mb-2">Watch Party</h1>
           <p className="text-text-muted">Смотрите фильмы вместе с друзьями в реальном времени</p>
+        </motion.div>
+
+        {/* Screencast lobby */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="bg-bg-elevated border border-border rounded-2xl p-6 mb-6"
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-violet-600/20 flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-white mb-1">Показ экрана</h2>
+              <p className="text-text-muted text-sm mb-4">Создайте комнату и покажите свой экран друзьям</p>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={handleCreateScreencast}
+                disabled={creating}
+                className="px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold shadow-[0_0_20px_rgba(124,58,237,0.35)] hover:shadow-[0_0_28px_rgba(124,58,237,0.5)] transition-all disabled:opacity-50"
+              >
+                {creating ? 'Создаю...' : 'Создать комнату'}
+              </motion.button>
+              {screenError && <p className="text-red-400 text-sm mt-2">{screenError}</p>}
+            </div>
+          </div>
         </motion.div>
 
         {/* Join by code */}
@@ -69,7 +112,7 @@ export function WatchPartyPage({ onAuthOpen }) {
           transition={{ delay: 0.2 }}
           className="bg-bg-elevated border border-border rounded-2xl p-6"
         >
-          <h2 className="text-lg font-bold text-white mb-4">Как создать лобби</h2>
+          <h2 className="text-lg font-bold text-white mb-4">Как создать лобби с фильмом</h2>
           <div className="space-y-4">
             <div className="flex gap-3">
               <div className="w-8 h-8 rounded-full bg-violet-600/20 flex items-center justify-center flex-shrink-0">

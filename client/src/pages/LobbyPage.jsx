@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { VideoPlayer } from '../components/VideoPlayer'
+import { ScreenShare } from '../components/ScreenShare'
 import { WatchPartyPanel } from '../components/WatchPartyPanel'
 import { useLobbySocket } from '../hooks/useLobby'
 import { useAuthStore } from '../store/authStore'
@@ -65,6 +66,7 @@ export function LobbyPage({ onAuthOpen }) {
 
   const isHost = lobby?.hostId === user?.id
   const hasVideo = lobby?.movieId
+  const isScreencast = lobby?.mode === 'screencast'
 
   if (!user) return null
 
@@ -159,7 +161,14 @@ export function LobbyPage({ onAuthOpen }) {
 
         {/* Player */}
         <div className="flex-1 flex items-center bg-black overflow-hidden min-h-0">
-          {hasVideo ? (
+          {isScreencast ? (
+            <ScreenShare
+              isHost={isHost}
+              members={members}
+              hostId={lobby.hostId}
+              currentUserId={user?.id}
+            />
+          ) : hasVideo ? (
             <VideoPlayer
               movieId={lobby.movieId}
               movieType={lobby.movieType || 'movie'}

@@ -126,6 +126,7 @@ export function registerSocketHandlers(io) {
             code: lobby.code,
             isPrivate: lobby.isPrivate,
             hostId: lobby.hostId.toString(),
+            mode: lobby.mode || "movie",
             movieId: lobby.movieId,
             movieType: lobby.movieType,
             movieTitle: lobby.movieTitle,
@@ -342,6 +343,33 @@ export function registerSocketHandlers(io) {
       } catch {
         // non-critical
       }
+    });
+
+    /* ════════════════════════════════════
+       LOBBY:RTC-SIGNAL — WebRTC signaling for screen share
+       Host sends offer to guest, guest sends answer back
+       ════════════════════════════════════ */
+    socket.on("lobby:rtc-signal", ({ targetUserId, signal }) => {
+      if (!currentLobbyCode) return;
+      // Find the target socket in the room and forward
+      const room = io.sockets.adapter.rooms.get(currentLobbyCode);
+      if (!room) return;
+      for (const sid of room) {
+        const s = io.sockets.sockets.get(sid);
+        if (s && s.user?.userId === targetUserId) {
+          s.emit("lobby:rtc-signal", { fromUserId: userId, signal });
+          break;
+        }
+      }
+    });
+
+    // Host notifies guests that screen sharing started/stopped
+    socket.on("lobby:screen-share", async ({ active }) => {
+      if (!currentLobbyCode) return;
+      io.to(currentLobbyCode).emit("lobby:screen-share", {
+        active: !!active,
+        hostUserId: userId,
+      });
     });
 
     /* ════════════════════════════════════

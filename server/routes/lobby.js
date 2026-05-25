@@ -15,8 +15,9 @@ function generateCode() {
 /* POST /api/lobby — создать лобби */
 router.post("/", authMiddleware, async (req, res) => {
   try {
-    const { movieId, movieType, movieTitle, moviePoster, isPrivate } = req.body;
-    if (!movieId || !movieTitle) {
+    const { movieId, movieType, movieTitle, moviePoster, isPrivate, mode } = req.body;
+    const isScreencast = mode === "screencast";
+    if (!isScreencast && (!movieId || !movieTitle)) {
       return res.status(400).json({ error: "movieId and movieTitle required" });
     }
 
@@ -30,11 +31,12 @@ router.post("/", authMiddleware, async (req, res) => {
     const lobby = await Lobby.create({
       code,
       isPrivate: !!isPrivate,
+      mode: isScreencast ? "screencast" : "movie",
       hostId: req.user.userId,
-      movieId: Number(movieId),
-      movieType: movieType || "movie",
-      movieTitle,
-      moviePoster: moviePoster || null,
+      movieId: isScreencast ? null : Number(movieId),
+      movieType: isScreencast ? "movie" : (movieType || "movie"),
+      movieTitle: isScreencast ? "Показ экрана" : movieTitle,
+      moviePoster: isScreencast ? null : (moviePoster || null),
       members: [{
         userId: req.user.userId,
         username: req.user.username,
@@ -75,7 +77,7 @@ router.get("/:code", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const lobbies = await Lobby.find({ isPrivate: false })
-      .select("code movieTitle moviePoster movieType members hostId createdAt")
+      .select("code mode movieTitle moviePoster movieType members hostId createdAt")
       .sort({ createdAt: -1 })
       .limit(20);
     res.json(lobbies);
